@@ -1,4 +1,5 @@
 extern crate nalgebra as na;
+extern crate rand;
 
 use std::{
     fmt,
@@ -64,7 +65,9 @@ pub struct DuelGraph<A: fmt::Debug> {
     a: Adjacency,
 }
 
-impl <A> fmt::Display for DuelGraph<A> where A: fmt::Debug {
+impl <A> fmt::Display for DuelGraph<A>
+where A: fmt::Debug
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Graph {{");
         writeln!(f, "Alternatives: {:?}", self.v);
@@ -73,45 +76,9 @@ impl <A> fmt::Display for DuelGraph<A> where A: fmt::Debug {
     }
 }
 
-impl <A> DuelGraph<A> where A: fmt::Debug + Clone {
-    //pub fn make_paradox() -> DuelGraph<String> {
-    //    let mut a = adjacency::AdjacencyMatrix::new(3);
-    //    a[(0, 1)] = true;
-    //    a[(1, 2)] = true;
-    //    a[(2, 0)] = true;
-    //    DuelGraph::<String> {
-    //        v: vec!["Alpha".to_string(),
-    //                "Bravo".to_string(),
-    //                "Charlie".to_string()],
-    //        a: a,
-    //    }
-    //}
-
-    //pub fn make_almost_paradox() -> DuelGraph<String> {
-    //    let mut a = adjacency::AdjacencyMatrix::new(4);
-    //    a[(0, 1)] = true;
-    //    a[(1, 2)] = true;
-    //    a[(2, 0)] = true;
-    //    a[(3, 0)] = true;
-    //    a[(3, 1)] = true;
-    //    a[(3, 2)] = true;
-    //    DuelGraph::<String> {
-    //        v: vec!["Alpha".to_string(),
-    //                "Bravo".to_string(),
-    //                "Charlie".to_string(),
-    //                "Delta".to_string()],
-    //        a: a,
-    //    }
-    //}
-    //pub fn make_trivial() -> DuelGraph<String> {
-    //    let mut a = adjacency::AdjacencyMatrix::new(2);
-    //    a[(0, 1)] = true;
-    //    DuelGraph::<String> {
-    //        v: vec!["Alpha".to_string(), "Bravo".to_string()],
-    //        a: a,
-    //    }
-    //}
-
+impl <A> DuelGraph<A>
+where A: fmt::Debug + Clone
+{
     pub fn get_source(&self) -> Option<A> {
         let mut n: Option<A> = None;
         for i in 0..self.v.len() {
@@ -170,13 +137,17 @@ impl <A> DuelGraph<A> where A: fmt::Debug + Clone {
     }
 }
 
-pub struct Election<A> where A: Eq + Hash + Clone + fmt::Display {
+pub struct Election<A>
+where A: Eq + Hash + Clone + fmt::Display
+{
     alternatives: HashSet<A>,
     duels: HashMap<Arrow<A>, u64>,
     open: bool,
 }
 
-impl <A> Election<A> where A: fmt::Display + Eq + Hash + Clone + fmt::Debug {
+impl <A> Election<A>
+where A: fmt::Display + Eq + Hash + Clone + fmt::Debug
+{
     pub fn new() -> Election<A> {
         Election::<A> {
             alternatives: HashSet::new(),
@@ -209,6 +180,11 @@ impl <A> Election<A> where A: fmt::Display + Eq + Hash + Clone + fmt::Debug {
             }
         }
         true
+    }
+
+    pub fn add_alternative(&mut self, v: &A) -> bool {
+        if !self.open { return false; }
+        self.alternatives.insert(v.to_owned())
     }
 
     //fn pseudocast(&mut self, ballot: &Ballot<A>) -> bool {
@@ -260,9 +236,16 @@ impl <A> Election<A> where A: fmt::Display + Eq + Hash + Clone + fmt::Debug {
     pub fn get_minimax_lottery(&self) -> Vec<(A, f64)> {
         self.get_duel_graph().get_minimax_strategy()
     }
+
+    pub fn get_randomized_winner(&self) -> A {
+        let p = self.get_duel_graph().get_minimax_strategy();
+        play_strategy(&p).clone()
+    }
 }
 
-impl <A> fmt::Display for Election<A> where A: Eq + Hash + Clone + fmt::Display {
+impl <A> fmt::Display for Election<A>
+    where A: Eq + Hash + Clone + fmt::Display
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Election {{");
         for x in self.duels.iter() {
@@ -273,10 +256,72 @@ impl <A> fmt::Display for Election<A> where A: Eq + Hash + Clone + fmt::Display 
     }
 }
 
+fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
+    where F: Fn(&A, &A) -> std::cmp::Ordering
+{
+    for i in (b + 1)..e {
+        let mut j = i;
+        while j > 0 && compare(&a[j], &a[j - 1]) == std::cmp::Ordering::Less {
+            a.swap(j - 1, j);
+        }
+    }
+}
+
+fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A> 
+    where F: Fn(&A, &A) -> std::cmp::Ordering
+{
+    let mut stack = vec![(0usize, a.len())];
+    while !stack.is_empty() {
+        let last = stack.len() - 1;
+        let (b, size) = stack.remove(last);
+        if size <= 7 {
+            insertion_sort(&mut a, b, b + size, &compare);
+        } else {
+            a.swap(rand::random::<usize>() % size, b);
+            let mut i = b;
+            let mut j = i;
+            let mut k = b + size - 1;
+            // Invariant: [i, j) only contains copies of the pivot
+            while j < k {
+                match compare(&a[j], &a[i]) {
+                    std::cmp::Ordering::Less => {
+                        a.swap(i, j);
+                        i += 1;
+                        j += 1;
+                    },
+                    std::cmp::Ordering::Greater => {
+                        a.swap(j, k);
+                        k -= 1;
+                    },
+                    std::cmp::Ordering::Equal => j += 1,
+                }
+            }
+            stack.push((b, i - b));
+            stack.push((j, size - j));
+        }
+    }
+    a
+}
+
+pub fn play_strategy<A>(p: &Vec<(A, f64)>) -> A
+where A: std::fmt::Debug + Clone
+{
+    // Sort the array for better numerical accuracy
+    println!("Before: {:?}", p);
+    let a = quick_sort(p.clone().to_vec(),
+                       |(_, x), (_, y)| x.partial_cmp(y).unwrap().reverse());
+    println!("Sorted: {:?}", a);
+    let mut x = rand::random::<f64>();
+    for (v, p) in a.into_iter() {
+        x -= p;
+        if x <= 0f64 { return v; }
+    }
+    panic!("Strategy is ill-formed");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    extern crate rand;
 
     fn strategy_chooses(p: Vec<(String, f64)>, w: String) -> bool {
         p.into_iter().all(|(v, x)|

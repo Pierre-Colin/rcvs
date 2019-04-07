@@ -150,3 +150,15 @@ fn five_non_uniform() {
     // Panic to print during tests (dirty but too lazy to do it the right way)
     panic!("Nope");
 }
+
+#[test]
+fn simulate_election() {
+    let names = ["Alpha", "Bravo", "Charlie"];
+    let mut e = rcvs::Election::<String>::new();
+    for i in 0..3 {
+        let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string())
+                                   .collect();
+        cp_ballot(&mut e, v);
+    }
+    for _ in 0..10 { println!("Winner: {}", e.get_randomized_winner()); }
+}

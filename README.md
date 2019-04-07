@@ -20,7 +20,6 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 
 ### To-dos
 * complete the simplex algorithm for maximin strategies (≥ constraints);
-* a method in Election to pick the winner (some work might be necessary to make it numerically accurate);
 * more tests;
 * make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
 * optimize resource management if possible (ballots having ownership of everything, etc.);
