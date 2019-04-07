@@ -87,9 +87,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector) -> Vector {
             //println!("Swapping columns k = {} and i = {}", k, i);
             a.swap_columns(i, k);
             c.swap_rows(i, k);
-            let temp = ind[i];
-            ind[i] = ind[k];
-            ind[k] = temp;
+            ind.swap(i, k);
         } else {
             break;
         }
