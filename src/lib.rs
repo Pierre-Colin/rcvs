@@ -66,7 +66,7 @@ pub struct DuelGraph<A: fmt::Debug> {
 }
 
 impl <A> fmt::Display for DuelGraph<A>
-where A: fmt::Debug
+    where A: fmt::Debug
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Graph {{");
@@ -77,7 +77,7 @@ where A: fmt::Debug
 }
 
 impl <A> DuelGraph<A>
-where A: fmt::Debug + Clone
+    where A: fmt::Debug + Clone
 {
     pub fn get_source(&self) -> Option<A> {
         let mut n: Option<A> = None;
@@ -138,7 +138,7 @@ where A: fmt::Debug + Clone
 }
 
 pub struct Election<A>
-where A: Eq + Hash + Clone + fmt::Display
+    where A: Eq + Hash + Clone + fmt::Display
 {
     alternatives: HashSet<A>,
     duels: HashMap<Arrow<A>, u64>,
@@ -146,7 +146,7 @@ where A: Eq + Hash + Clone + fmt::Display
 }
 
 impl <A> Election<A>
-where A: fmt::Display + Eq + Hash + Clone + fmt::Debug
+    where A: fmt::Display + Eq + Hash + Clone + fmt::Debug
 {
     pub fn new() -> Election<A> {
         Election::<A> {
@@ -304,7 +304,7 @@ fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A>
 }
 
 pub fn play_strategy<A>(p: &Vec<(A, f64)>) -> A
-where A: std::fmt::Debug + Clone
+    where A: std::fmt::Debug + Clone
 {
     // Sort the array for better numerical accuracy
     println!("Before: {:?}", p);

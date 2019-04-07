@@ -118,11 +118,6 @@ pub fn vector_to_lottery(x: Vector) -> Vec<f64> {
 mod tests {
     use super::*;
 
-    fn is_uniform(x: Vec<f64>) -> bool {
-        let n = 1f64 / (x.len() as f64);
-        x.into_iter().all(|e| f64::abs(e - n) < 0.000001f64)
-    }
-
     #[test]
     fn wiki() {
         let mut m = Matrix::zeros(2, 3);
@@ -135,6 +130,7 @@ mod tests {
         let b = Vector::from_iterator(2, vec![10f64, 15f64].into_iter());
         let c = Vector::from_iterator(5, vec![0f64, 0f64, -2f64, -3f64, -4f64].into_iter());
         let x = simplex(&m, &c, &b);
-        //println!("{}", x.transpose());
+        assert!(x.iter().take(2).all(|x| *x < 0.000001f64));
+        assert!(f64::abs(x.iter().last().unwrap() - 5f64) < 0.000001f64);
     }
 }
