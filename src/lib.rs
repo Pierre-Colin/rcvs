@@ -69,9 +69,9 @@ impl <A> fmt::Display for DuelGraph<A>
     where A: fmt::Debug
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Graph {{");
-        writeln!(f, "Alternatives: {:?}", self.v);
-        writeln!(f, "{}", self.a);
+        writeln!(f, "Graph {{")?;
+        writeln!(f, "Alternatives: {:?}", self.v)?;
+        writeln!(f, "{}", self.a)?;
         write!(f, "}}")
     }
 }
@@ -247,10 +247,10 @@ impl <A> fmt::Display for Election<A>
     where A: Eq + Hash + Clone + fmt::Display
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Election {{");
+        writeln!(f, "Election {{")?;
         for x in self.duels.iter() {
             let (Arrow::<A>(a, b), n) = x;
-            writeln!(f, "    {} beats {} {} times", a, b, n);
+            writeln!(f, "    {} beats {} {} times", a, b, n)?;
         }
         write!(f, "}}")
     }
