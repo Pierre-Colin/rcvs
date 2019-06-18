@@ -67,6 +67,7 @@ fn feasible_basic_vector(a: &mut Matrix, b: &Vector, c: &mut Vector, ind: &mut V
         let ratio = Vector::from_iterator(w.len(), w.iter().zip(xb.iter()).map(|(w, x)| x / w));
         println!("x / w = {}", ratio.transpose());
         if let Some((i, _)) = w.into_iter().zip(xb.iter()).enumerate()
+                               .filter(|(_, (_, xi))| **xi < 0f64)
                                .min_by(|(_, (wi, xi)), (_, (wj, xj))|
                                        (*xi / *wi).partial_cmp(&(*xj / *wj))
                                                   .unwrap()) {

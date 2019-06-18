@@ -128,6 +128,15 @@ fn single_ballot(e: &mut rcvs::Election<String>, x: &str, y: &str) {
     e.cast(b);
 }
 
+fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
+    x.iter().map(|(x, p)|
+        match y.iter().find(|(y, _)| y == x) {
+            None => panic!("x contains {} but not y", x),
+            Some((y, q)) => (p - q).abs(),
+        }
+    ).sum()
+}
+
 #[test]
 fn five_non_uniform() {
     let names = vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
@@ -148,7 +157,15 @@ fn five_non_uniform() {
     let maximin = g.get_maximin_strategy();
     println!("{:?}\n{:?}", minimax, maximin);
     // Panic to print during tests (dirty but too lazy to do it the right way)
-    panic!("Nope");
+    let result = vec![
+        ("Alpha".to_string(), 1f64 / 3f64),
+        ("Bravo".to_string(), 1f64 / 9f64),
+        ("Charlie".to_string(), 1f64 / 9f64),
+        ("Delta".to_string(), 1f64 / 9f64),
+        ("Echo".to_string(), 1f64 / 3f64)
+    ];
+    assert!(strategy_distance(&minimax, &result) < 1e-6);
+    assert!(strategy_distance(&maximin, &result) < 1e-6);
 }
 
 #[test]
