@@ -38,3 +38,6 @@ As easy as:
 cargo build
 ```
 I don't really know what to do with the compiled files though, as I'm only testing with `cargo test`. Like I said, I'm still a beginner in Rust.
+
+## Results
+The test `condorcet_strategies_optimal` is the main test of the library. Measured failure rate (how often a randomly-generated strategy beats all Condorcet strategies whose computation succeeded) was 0.7279%.

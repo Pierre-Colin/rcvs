@@ -111,7 +111,9 @@ impl <A> DuelGraph<A>
         m
     }
 
-    pub fn get_minimax_strategy(&self) -> Vec<(A, f64)> {
+    pub fn get_minimax_strategy(&self)
+        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+    {
         let n = self.v.len();
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
@@ -119,12 +121,14 @@ impl <A> DuelGraph<A>
         let c = na::DVector::from_iterator(2 * n,
                                            std::iter::repeat(0f64).take(n)
                                                                   .chain(std::iter::repeat(-1f64).take(n)));
-        let x = simplex::simplex(&m, &c, &b);
+        let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
-        self.v.iter().cloned().zip(p.into_iter()).collect()
+        Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
     }
 
-    pub fn get_maximin_strategy(&self) -> Vec<(A, f64)> {
+    pub fn get_maximin_strategy(&self)
+        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+    {
         let n = self.v.len();
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
@@ -132,9 +136,9 @@ impl <A> DuelGraph<A>
         let c = na::DVector::from_iterator(2 * n,
                                            std::iter::repeat(0f64).take(n)
                                                                   .chain(std::iter::repeat(1f64).take(n)));
-        let x = simplex::simplex(&m, &c, &b);
+        let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
-        self.v.iter().cloned().zip(p.into_iter()).collect()
+        Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
     }
 
     fn strategy_vector(&self, p: &Vec<(A, f64)>) -> Vector {
@@ -252,13 +256,15 @@ impl <A> Election<A>
         self.get_duel_graph().get_source()
     }
 
-    pub fn get_minimax_lottery(&self) -> Vec<(A, f64)> {
+    pub fn get_minimax_lottery(&self)
+        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+    {
         self.get_duel_graph().get_minimax_strategy()
     }
 
-    pub fn get_randomized_winner(&self) -> A {
-        let p = self.get_duel_graph().get_minimax_strategy();
-        play_strategy(&p).clone()
+    pub fn get_randomized_winner(&self) -> Result<A, simplex::SimplexError> {
+        let p = self.get_duel_graph().get_minimax_strategy()?;
+        Ok(play_strategy(&p).clone())
     }
 }
 
@@ -373,7 +379,7 @@ mod tests {
                 };
                 let w = g.get_source();
                 assert_ne!(w, None, "No source in graph {}", g);
-                assert!(strategy_chooses(g.get_minimax_strategy(),
+                assert!(strategy_chooses(g.get_minimax_strategy().unwrap(),
                                          w.unwrap().to_string()));
             }
         }
@@ -400,9 +406,9 @@ mod tests {
         for b in b.iter().cloned() { e.cast(b); }
         let g = e.get_duel_graph();
         assert_eq!(g.get_source(), None);
-        println!("Minimax {:?}", g.get_minimax_strategy());
-        println!("Maximin {:?}", g.get_maximin_strategy());
-        assert!(g.get_minimax_strategy()
+        println!("Minimax {:?}", g.get_minimax_strategy().unwrap());
+        println!("Maximin {:?}", g.get_maximin_strategy().unwrap());
+        assert!(g.get_minimax_strategy().unwrap()
                  .into_iter()
                  .all(|(_, x)| f64::abs(x - 0.333f64) < 0.001f64),
                 "Strategy for Condorcet paradox isn't uniform");

@@ -92,7 +92,7 @@ fn one_versus_one() {
         for _ in 1..=nb { ovo_ballot(&mut e, "Bravo", "Alpha"); }
         let g = e.get_duel_graph();
         let s = g.get_source();
-        let p = g.get_minimax_strategy();
+        let p = g.get_minimax_strategy().unwrap();
         match na.cmp(&nb) {
             Ordering::Less => assert_eq!(s, Some("Bravo".to_string())),
             Ordering::Equal => assert_eq!(s, None),
@@ -130,10 +130,10 @@ fn condorcet_paradox() {
     }
     let g = e.get_duel_graph();
     assert_eq!(g.get_source(), None);
-    let p = g.get_minimax_strategy();
+    let p = g.get_minimax_strategy().unwrap();
     println!("{:?}", p);
     assert!(is_uniform(p));
-    let p = g.get_maximin_strategy();
+    let p = g.get_maximin_strategy().unwrap();
     println!("{:?}", p);
     assert!(is_uniform(p));
 }
@@ -172,7 +172,7 @@ fn condorcet_winner() {
                 assert!(e.cast(b), "Election was closed");
             }
             assert_eq!(e.get_condorcet_winner(), Some(v[s].clone()));
-            assert!(strategy_chooses(e.get_minimax_lottery(), &v[s]));
+            assert!(strategy_chooses(e.get_minimax_lottery().unwrap(), &v[s]));
         }
     }
 }
@@ -209,8 +209,8 @@ fn five_non_uniform() {
     single_ballot(&mut e, names[4], names[0]);
     assert_eq!(e.get_condorcet_winner(), None);
     let g = e.get_duel_graph();
-    let minimax = g.get_minimax_strategy();
-    let maximin = g.get_maximin_strategy();
+    let minimax = g.get_minimax_strategy().unwrap();
+    let maximin = g.get_maximin_strategy().unwrap();
     println!("{:?}\n{:?}", minimax, maximin);
     // Panic to print during tests (dirty but too lazy to do it the right way)
     let result = vec![
@@ -233,7 +233,9 @@ fn simulate_election() {
                                    .collect();
         cp_ballot(&mut e, v);
     }
-    for _ in 0..10 { println!("Winner: {}", e.get_randomized_winner()); }
+    for _ in 0..10 {
+        println!("Winner: {}", e.get_randomized_winner().unwrap());
+    }
 }
 
 fn random_strategy<A: Clone>(a: &Vec<A>) -> Vec<(A, f64)> {
@@ -254,11 +256,13 @@ fn condorcet_strategies_optimal() {
         "Echo",
         "Foxtrot",
     ].iter().map(|x| x.to_string()).collect();
-    for _enum in 0..1000 {
+    let num_elections = 1000;
+    let num_strategies = 1000;
+    let mut failed = 0u64;
+    for _enum in 0..num_elections {
         println!("Election #{}", _enum);
         let mut e = rcvs::Election::<String>::new();
         for _bnum in 0..500 {
-            println!("Ballot #{}", _bnum);
             let rank: Vec<u64> = shuffle(&(0..(names.len() as u64)).collect());
             let mut b = rcvs::Ballot::<String>::new();
             names.iter().zip(rank.into_iter()).for_each(|(v, r)|
@@ -267,19 +271,48 @@ fn condorcet_strategies_optimal() {
             e.cast(b);
         }
         let g = e.get_duel_graph();
-        let minimax = g.get_minimax_strategy();
-        let maximin = g.get_maximin_strategy();
-        println!("Checking random strategies...");
-        for _snum in 0..1000 {
-            println!("{}", _snum);
-            let p = random_strategy(&names);
-            if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
-                && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
-                println!("{}", g);
-                println!("Minimax: {:?}", minimax);
-                println!("Maximin: {:?}", maximin);
-                panic!("{:?} beats both minimax and maximin", p);
-            }
-        }
+        match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+            (Ok(minimax), Ok(maximin)) => {
+                println!("Both worked");
+                for _snum in 0..num_strategies {
+                    let p = random_strategy(&names);
+                    if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
+                        && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
+                        println!("{}", g);
+                        println!("Minimax: {:?}", minimax);
+                        println!("Maximin: {:?}", maximin);
+                        println!("{:?} beats both minimax and maximin", p);
+                        failed += 1;
+                    }
+                }
+            },
+            (Ok(minimax), Err(e)) => {
+                println!("Maximin failed: {}", e);
+                for _snum in 0..1000 {
+                    let p = random_strategy(&names);
+                    if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less {
+                        println!("{}", g);
+                        println!("Minimax: {:?}", minimax);
+                        println!("{:?} beats minimax", p);
+                        failed += 1;
+                    }
+                }
+            },
+            (Err(e), Ok(maximin)) => {
+                println!("Minimax failed: {}", e);
+                for _snum in 0..1000 {
+                    let p = random_strategy(&names);
+                    if g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
+                        println!("{}", g);
+                        println!("Maximin: {:?}", maximin);
+                        println!("{:?} beats maximin", p);
+                        failed += 1;
+                    }
+                }
+            },
+            (Err(e), Err(f)) => panic!("Both failed:\n{}\n{}", e, f),
+        };
     }
+    let failure_rate = failed as f64 / (num_elections * num_strategies) as f64;
+    assert!(failure_rate < 1e-6, "Failure rate was too big: {}", failure_rate);
 }
