@@ -13,6 +13,7 @@ mod simplex;
 
 type Adjacency = na::DMatrix<bool>;
 type Matrix = na::DMatrix<f64>;
+type Vector = na::DVector<f64>;
 
 #[derive(Clone)]
 pub struct Ballot<A: Hash> {
@@ -77,7 +78,7 @@ impl <A> fmt::Display for DuelGraph<A>
 }
 
 impl <A> DuelGraph<A>
-    where A: fmt::Debug + Clone
+    where A: fmt::Debug + Clone + std::cmp::Eq
 {
     pub fn get_source(&self) -> Option<A> {
         let mut n: Option<A> = None;
@@ -134,6 +135,24 @@ impl <A> DuelGraph<A>
         let x = simplex::simplex(&m, &c, &b);
         let p = simplex::vector_to_lottery(x);
         self.v.iter().cloned().zip(p.into_iter()).collect()
+    }
+
+    fn strategy_vector(&self, p: &Vec<(A, f64)>) -> Vector {
+        Vector::from_iterator(self.v.len(), self.v.iter().map(|e|
+            match p.iter().find(|(u, _)| *u == *e) {
+                None => panic!("Alternative not found"),
+                Some((_, p)) => p.clone(),
+            }
+        ))
+    }
+
+    pub fn compare_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
+        -> std::cmp::Ordering
+    {
+        let m = Self::adjacency_to_matrix(&self.a);
+        let p = self.strategy_vector(x);
+        let q = self.strategy_vector(y);
+        (p.transpose() * m * q)[(0, 0)].partial_cmp(&0f64).unwrap()
     }
 }
 

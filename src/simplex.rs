@@ -26,6 +26,7 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Option<usize> {
     println!("c = {}", c.transpose());
     println!("(m, n) = ({}, {})", m, n);
     // Compute reduced costs for all xk not in basis
+    // FIXME: unwrap may fail here; find out why and raise an Error
     let y = a.columns(0, m).transpose().lu().solve(&c.rows(0, m)).unwrap();
     println!("y = {}", y.transpose());
     let u = c.rows(m, n - m) - a.columns(m, n - m).clone().transpose() * y;

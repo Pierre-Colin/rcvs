@@ -16,14 +16,14 @@ This voting system has a few advantages. Most notably, it incentivizes honest vo
 This Rust implementation is fairly basic, for I am still a beginner in Rust. In particular, both the ballots and the election structure clone everything instead of working with references and it is not concurrent yet (although the title of the report suggests it will eventually be).
 
 ## Contribution guidelines
-I welcome all help to improve it, be it with Rust or with the algorithms at hand, as long as you explain your work and don't bring in unnecessary dependencies that will make building it more of a hassle ([nalgebra](https://www.nalgebra.org/) is already a big one that I wish I could realistically do without). Please don't propose to replace the simplex algorithm with a wrapper of a pre-existing LP solver. Most of them would interface poorly with the rest of my code and are way too complex for what I am trying to do here. In particular, they tend to be optimized for huge sparse matrices whereas here we're dealing with small dense ones.
+I welcome all help to improve it, be it with Rust or with the algorithms at hand, as long as you explain your work and don't bring in unnecessary dependencies that will make building it more of a hassle ([nalgebra](https://www.nalgebra.org/) is already a big one that I wish I could realistically do without). Please don't propose to replace the simplex algorithm with a wrapper of a pre-existing LP solver. Most of them would interface poorly with the rest of my code and are way too complex for what I am trying to do here. In particular, they tend to be optimized for huge sparse matrices whereas here we're dealing with small dense ones. I did try the [lpsolve](https://crates.io/crates/lpsolve) crate, and it is too verbose as it is.
 
 ### To-dos
-* complete the simplex algorithm for maximin strategies (≥ constraints);
+* enhance the simplex algorithm by making it more numerically stable and giving it better error handling;
 * more tests;
 * make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
 * optimize resource management if possible (ballots having ownership of everything, etc.);
-* remove all those unwraps in the simplex algorithm, and replace them with proper error management.
+* implement a way to cast a graph ballot which could be used to implement an Electoral College-style agregate of votes.
 
 ## Dependencies
 The root dependencies are:
