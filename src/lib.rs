@@ -1,15 +1,20 @@
 extern crate nalgebra as na;
 extern crate rand;
 
+mod ballot;
+mod simplex;
+pub mod util;
+
 use std::{
     fmt,
     clone::Clone,
     collections::{HashMap, hash_map, HashSet},
     cmp::Eq,
     hash::Hash,
+    iter::repeat,
 };
-mod ballot;
-mod simplex;
+
+use util::{quick_sort, random_strategy};
 
 type Adjacency = na::DMatrix<bool>;
 type Matrix = na::DMatrix<f64>;
@@ -93,6 +98,19 @@ impl <A> DuelGraph<A>
         n
     }
 
+    pub fn get_sink(&self) -> Option<A> {
+        let mut n: Option<A> = None;
+        for i in 0..self.v.len() {
+            if (0..self.v.len()).all(|j| !self.a[(i, j)]) {
+                match n {
+                    Some(_) => return None,
+                    None => n = Some(self.v[i].clone()),
+                }
+            }
+        }
+        n
+    }
+
     fn adjacency_to_matrix(a: &Adjacency) -> Matrix {
         let (n, nn) = a.shape();
         assert_eq!(n, nn);
@@ -118,9 +136,10 @@ impl <A> DuelGraph<A>
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
         let b = na::DVector::from_element(n, 1f64);
-        let c = na::DVector::from_iterator(2 * n,
-                                           std::iter::repeat(0f64).take(n)
-                                                                  .chain(std::iter::repeat(-1f64).take(n)));
+        let c = na::DVector::from_iterator(
+            2 * n,
+            repeat(0f64).take(n).chain(repeat(-1f64).take(n))
+        );
         let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
@@ -130,12 +149,13 @@ impl <A> DuelGraph<A>
         -> Result<Vec<(A, f64)>, simplex::SimplexError>
     {
         let n = self.v.len();
-        let mut m = Self::adjacency_to_matrix(&self.a);
+        let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
         let b = na::DVector::from_element(n, -1f64);
-        let c = na::DVector::from_iterator(2 * n,
-                                           std::iter::repeat(0f64).take(n)
-                                                                  .chain(std::iter::repeat(1f64).take(n)));
+        let c = na::DVector::from_iterator(
+            2 * n,
+            repeat(0f64).take(n).chain(repeat(1f64).take(n))
+        );
         let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
@@ -150,13 +170,19 @@ impl <A> DuelGraph<A>
         ))
     }
 
-    pub fn compare_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
-        -> std::cmp::Ordering
+    pub fn confront_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
+        -> f64
     {
         let m = Self::adjacency_to_matrix(&self.a);
         let p = self.strategy_vector(x);
         let q = self.strategy_vector(y);
-        (p.transpose() * m * q)[(0, 0)].partial_cmp(&0f64).unwrap()
+        (p.transpose() * m * q)[(0, 0)]
+    }
+
+    pub fn compare_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
+        -> std::cmp::Ordering
+    {
+        self.confront_strategies(x, y).partial_cmp(&0f64).unwrap()
     }
 }
 
@@ -210,28 +236,6 @@ impl <A> Election<A>
         self.alternatives.insert(v.to_owned())
     }
 
-    //fn pseudocast(&mut self, ballot: &Ballot<A>) -> bool {
-    //    if !self.open {
-    //        return false;
-    //    }
-    //    for x in ballot.iter() {
-    //        let (a, r) = x;
-    //        self.alternatives.insert(a.to_owned());
-    //        for y in ballot.iter() {
-    //            let (b, s) = y;
-    //            self.alternatives.insert(b.to_owned());
-    //            if r > s {
-    //                let n = match self.get(a, b) {
-    //                    Some(m) => m + 1,
-    //                    None => 1,
-    //                };
-    //                self.duels.insert(Arrow::<A>(a.to_owned(), b.to_owned()), n);
-    //            }
-    //        }
-    //    }
-    //    true
-    //}
-
     pub fn get_duel_graph(&self) -> DuelGraph<A> {
         let v: Vec<A> = self.alternatives.iter().cloned().collect();
         let n = v.len();
@@ -254,6 +258,10 @@ impl <A> Election<A>
 
     pub fn get_condorcet_winner(&self) -> Option<A> {
         self.get_duel_graph().get_source()
+    }
+
+    pub fn get_condorcet_loser(&self) -> Option<A> {
+        self.get_duel_graph().get_sink()
     }
 
     pub fn get_minimax_lottery(&self)
@@ -281,61 +289,12 @@ impl <A> fmt::Display for Election<A>
     }
 }
 
-fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
-    where F: Fn(&A, &A) -> std::cmp::Ordering
-{
-    for i in (b + 1)..e {
-        let mut j = i;
-        while j > 0 && compare(&a[j], &a[j - 1]) == std::cmp::Ordering::Less {
-            a.swap(j - 1, j);
-        }
-    }
-}
-
-fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A> 
-    where F: Fn(&A, &A) -> std::cmp::Ordering
-{
-    let mut stack = vec![(0usize, a.len())];
-    while !stack.is_empty() {
-        let last = stack.len() - 1;
-        let (b, size) = stack.remove(last);
-        if size <= 7 {
-            insertion_sort(&mut a, b, b + size, &compare);
-        } else {
-            a.swap(rand::random::<usize>() % size, b);
-            let mut i = b;
-            let mut j = i;
-            let mut k = b + size - 1;
-            // Invariant: [i, j) only contains copies of the pivot
-            while j < k {
-                match compare(&a[j], &a[i]) {
-                    std::cmp::Ordering::Less => {
-                        a.swap(i, j);
-                        i += 1;
-                        j += 1;
-                    },
-                    std::cmp::Ordering::Greater => {
-                        a.swap(j, k);
-                        k -= 1;
-                    },
-                    std::cmp::Ordering::Equal => j += 1,
-                }
-            }
-            stack.push((b, i - b));
-            stack.push((j, size - j));
-        }
-    }
-    a
-}
-
 pub fn play_strategy<A>(p: &Vec<(A, f64)>) -> A
     where A: std::fmt::Debug + Clone
 {
     // Sort the array for better numerical accuracy
-    println!("Before: {:?}", p);
     let a = quick_sort(p.clone().to_vec(),
                        |(_, x), (_, y)| x.partial_cmp(y).unwrap().reverse());
-    println!("Sorted: {:?}", a);
     let mut x = rand::random::<f64>();
     for (v, p) in a.into_iter() {
         x -= p;
@@ -412,5 +371,107 @@ mod tests {
                  .into_iter()
                  .all(|(_, x)| f64::abs(x - 0.333f64) < 0.001f64),
                 "Strategy for Condorcet paradox isn't uniform");
+    }
+
+    fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
+        x.iter().map(|(x, p)|
+            match y.iter().find(|(y, _)| y == x) {
+                None => panic!("x contains {} but not y", x),
+                Some((y, q)) => (p - q).abs(),
+            }
+        ).sum()
+    }
+
+    // Last name commented out for convenience (doubles testing time)
+    #[test]
+    fn tournament() {
+        let names = vec!["Alpha", "Bravo", "Charlie",
+                         "Delta", "Echo" /*, "Foxtrot"*/];
+        for n in 1..=names.len() {
+            println!("Size {}", n);
+            let v: Vec<String> = names.iter().take(n).map(|x| x.to_string()).collect();
+            let mut a = Adjacency::from_element(n, n, false);
+            (0..(n - 1)).for_each(|i| ((i + 1)..n).for_each(|j| a[(i, j)] = true));
+            loop {
+                // Test graph
+                let g = DuelGraph::<String> {
+                    v: v.clone(),
+                    a: a.clone(),
+                };
+                match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+                    (Ok(minimax), Ok(maximin)) => {
+                        for _ in 0..100 {
+                            let p = random_strategy(&v);
+                            let vminimax = g.confront_strategies(&minimax, &p);
+                            let vmaximin = g.confront_strategies(&maximin, &p);
+                            if vminimax < -1e-6 && vmaximin < -1e-6 {
+                                panic!(
+                                    "{:?} beats both:\n * minimax by {}\n{:?}\n * maximin by {}\n{:?}",
+                                    p,
+                                    vminimax,
+                                    minimax,
+                                    vmaximin,
+                                    maximin
+                                );
+                            }
+                        }
+                    },
+                    (Err(e), Ok(maximin)) => {
+                        println!("{}\nMinimax failed: {}", g, e);
+                        for _ in 0..100 {
+                            let p = random_strategy(&v);
+                            let v = g.confront_strategies(&maximin, &p);
+                            if v < -1e-6 {
+                                panic!(
+                                    "{:?} beats maximin by {}\n{:?}",
+                                    p,
+                                    v,
+                                    maximin
+                                );
+                            }
+                        }
+                    },
+                    (Ok(minimax), Err(e)) => {
+                        println!("{}\nMaximin failed: {}", g, e);
+                        for _ in 0..100 {
+                            let p = random_strategy(&v);
+                            let v = g.confront_strategies(&minimax, &p);
+                            if v < -1e-6 {
+                                panic!(
+                                    "{:?} beats minimax by {}\n{:?}",
+                                    p,
+                                    v,
+                                    minimax
+                                );
+                            }
+                        }
+                    },
+                    (Err(e), Err(f)) =>
+                        panic!(
+                            "{}\nBoth failed:\n * minimax: {}\n * maximin: {}",
+                            g,
+                            e,
+                            f
+                        ),
+                };
+                // Next graph
+                let mut carry = true;
+                for i in 1..n {
+                    for j in 0..i {
+                        if !carry { break; }
+                        if a[(i, j)] {
+                            a[(i, j)] = false;
+                            a[(j, i)] = true;
+                        } else {
+                            a[(i, j)] = true;
+                            a[(j, i)] = false;
+                            carry = false;
+                        }
+                    }
+                }
+                // Stop test
+                if (1..n).all(|i| (0..i).all(|j| !a[(i, j)])) { break; }
+            }
+        }
     }
 }

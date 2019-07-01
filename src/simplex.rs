@@ -9,7 +9,6 @@ use std::{
 
 type Vector = na::DVector<f64>;
 type Matrix = na::DMatrix<f64>;
-type MatrixSlice<'a> = na::DMatrixSlice<'a, f64>;
 
 #[derive(Debug)]
 pub enum SimplexError {
@@ -61,7 +60,7 @@ fn make_a(constraints: &Matrix) -> Matrix {
     a
 }
 
-fn make_indices(b: &Vector, m: usize, n: usize) -> Vec<Option<usize>> {
+fn make_indices(m: usize, n: usize) -> Vec<Option<usize>> {
     repeat(None).take(m).chain((0..n).map(|i| Some(i))).collect()
 }
 
@@ -71,7 +70,6 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     //println!("c = {}", c.transpose());
     //println!("(m, n) = ({}, {})", m, n);
     // Compute reduced costs for all xk not in basis
-    // FIXME: unwrap may fail here; find out why and raise an Error
     let y: Vector;
     match a.columns(0, m).transpose().lu().solve(&c.rows(0, m)) {
         Some(v) => y = v,
@@ -172,7 +170,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     let mut a = make_a(constraints);
     // 1. Find a feasible basis
     let mut c = cost.clone();
-    let mut ind = make_indices(b, m, n);
+    let mut ind = make_indices(m, n);
     let mut xb = feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
     //println!("b = {}", b.transpose());
     for _pass in 1.. {
@@ -217,8 +215,9 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
         if w.iter().all(|e| *e <= 0f64) {
             return Err(SimplexError::Unbounded);
         }
+        // TODO: change this epsilon to something better
         if let Some((i, _)) = w.into_iter().zip(xb.iter()).enumerate()
-                               .filter(|(_, (wi, _))| **wi > 0f64)
+                               .filter(|(_, (wi, _))| **wi > 1e-6)
                                .min_by(|(_, (wi, xi)), (_, (wj, xj))|
                                        (*xi / *wi).partial_cmp(&(*xj / *wj))
                                                   .unwrap()) {
@@ -279,5 +278,29 @@ mod tests {
         let x = simplex(&m, &c, &b).unwrap();
         assert!(x.iter().take(2).all(|x| *x < 0.000001f64));
         assert!(f64::abs(x.iter().last().unwrap() - 5f64) < 0.000001f64);
+    }
+
+    // https://cbom.atozmath.com/CBOM/Simplex.aspx?q=sm&q1=6%606%60MAX%60Z%60x1%2cx2%2cx3%2cx4%2cx5%2cx6%601%2c1%2c1%2c1%2c1%2c1%602%2c1%2c1%2c1%2c3%2c1%3b3%2c2%2c1%2c3%2c1%2c3%3b3%2c3%2c2%2c1%2c3%2c1%3b3%2c1%2c3%2c2%2c1%2c1%3b1%2c3%2c1%2c3%2c2%2c3%3b3%2c1%2c3%2c3%2c1%2c2%60%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%601%2c1%2c1%2c1%2c1%2c1%60%60A%60false%60true%60false%60true%60false%60false%60true&do=1#PrevPart
+    #[test]
+    fn screw_up() {
+        let m = Matrix::from_iterator(6, 6,
+            vec![
+                2f64, 1f64, 1f64, 1f64, 3f64, 1f64,
+                3f64, 2f64, 1f64, 3f64, 1f64, 3f64,
+                3f64, 3f64, 2f64, 1f64, 3f64, 1f64,
+                3f64, 1f64, 3f64, 2f64, 1f64, 1f64,
+                1f64, 3f64, 1f64, 3f64, 2f64, 3f64,
+                3f64, 1f64, 3f64, 3f64, 1f64, 2f64,
+            ].into_iter()
+        ).transpose();
+        let b = Vector::from_element(6, 1f64);
+        let c = Vector::from_iterator(12, repeat(0f64).take(6).chain(repeat(-1f64).take(6)));
+        println!("Running simplex with\nM = {}\nb = {}\nc = {}", m, b.transpose(), c.transpose());
+        let x = simplex(&m, &c, &b).unwrap();
+        let sixth = 1f64 / 6f64;
+        assert!(
+            x.iter().zip([0f64, 0f64, sixth, 0f64, sixth, sixth].into_iter()).all(|(x, y)| (x - y).abs() < 1e-6),
+            "x = {}\nexpected (0, 0, 1/6, 0, 1/6, 1/6)", x.transpose()
+        );
     }
 }
