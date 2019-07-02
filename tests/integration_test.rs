@@ -185,7 +185,7 @@ fn condorcet_strategies_optimal() {
         "Echo",
         "Foxtrot",
     ].iter().map(|x| x.to_string()).collect();
-    let num_elections = 500;
+    let num_elections = 200;
     let num_strategies = 500;
     let mut failed = 0u64;
     for _enum in 0..num_elections {

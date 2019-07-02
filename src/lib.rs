@@ -130,30 +130,31 @@ impl <A> DuelGraph<A>
         m
     }
 
-    pub fn get_minimax_strategy(&self)
+    fn compute_strategy(&self, m: &Matrix, bval: f64, cval: f64)
         -> Result<Vec<(A, f64)>, simplex::SimplexError>
     {
         let n = self.v.len();
-        let mut m = Self::adjacency_to_matrix(&self.a);
-        m.iter_mut().for_each(|e| *e += 2f64);
-        let b = na::DVector::from_element(n, 1f64);
-        let c = na::DVector::from_element(n, -1f64);
-        let x = simplex::simplex(&m, &c, &b)?;
+        let b = Vector::from_element(n, bval);
+        let c = Vector::from_element(n, cval);
+        let x = simplex::simplex(m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
+    }
+
+    pub fn get_minimax_strategy(&self)
+        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+    {
+        let mut m = Self::adjacency_to_matrix(&self.a);
+        m.iter_mut().for_each(|e| *e += 2f64);
+        self.compute_strategy(&m, 1f64, -1f64)
     }
 
     pub fn get_maximin_strategy(&self)
         -> Result<Vec<(A, f64)>, simplex::SimplexError>
     {
-        let n = self.v.len();
         let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
-        let b = na::DVector::from_element(n, -1f64);
-        let c = na::DVector::from_element(n, 1f64);
-        let x = simplex::simplex(&m, &c, &b)?;
-        let p = simplex::vector_to_lottery(x);
-        Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
+        self.compute_strategy(&m, -1f64, 1f64)
     }
 
     // TODO: make an error type
