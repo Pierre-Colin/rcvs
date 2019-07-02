@@ -27,10 +27,10 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 
 ## Dependencies
 The root dependencies are:
-* [rand-0.6.4](https://crates.io/crates/rand)
+* [rand-0.7](https://crates.io/crates/rand)
 * [nalgebra-0.16.0](https://crates.io/crates/nalgebra)
 
-These are not up to date right now. As it turns out, `rand` was updated recently, and `nalgebra` did not compile on my (obsolete) version of `rustc`. Nevertheless, I have access to all the features I need right now, so it is not urgent to change those. Note that these dependencies in turn bring other dependencies into the picture.
+Later versions of `nalgebra` did not compile on my (obsolete) version of `rustc`. Nevertheless, I have access to all the features I need right now, so it is not urgent to change this. Note that these dependencies in turn bring other dependencies into the picture.
 
 ## Building
 As easy as:

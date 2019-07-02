@@ -11,10 +11,9 @@ use std::{
     collections::{HashMap, hash_map, HashSet},
     cmp::Eq,
     hash::Hash,
-    iter::repeat,
 };
 
-use util::{quick_sort, random_strategy};
+use util::quick_sort;
 
 type Adjacency = na::DMatrix<bool>;
 type Matrix = na::DMatrix<f64>;
@@ -301,6 +300,8 @@ pub fn play_strategy<A>(p: &Vec<(A, f64)>) -> A
 mod tests {
     use super::*;
 
+    use util::random_strategy;
+
     fn strategy_chooses(p: Vec<(String, f64)>, w: String) -> bool {
         p.into_iter().all(|(v, x)|
             if v == w { 1f64 - x < 0.000001f64 } else { x < 0.000001f64 }
@@ -371,7 +372,7 @@ mod tests {
         x.iter().map(|(x, p)|
             match y.iter().find(|(y, _)| y == x) {
                 None => panic!("x contains {} but not y", x),
-                Some((y, q)) => (p - q).abs(),
+                Some((_, q)) => (p - q).abs(),
             }
         ).sum()
     }

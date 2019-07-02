@@ -4,7 +4,7 @@ extern crate rand;
 
 use std::cmp::Ordering;
 
-use rcvs::util::{quick_sort, shuffle, random_strategy};
+use rcvs::util::{shuffle, random_strategy};
 
 fn ovo_ballot(e: &mut rcvs::Election<String>, name: &str, other: &str) {
     let mut b = rcvs::Ballot::<String>::new();
@@ -134,7 +134,7 @@ fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
     x.iter().map(|(x, p)|
         match y.iter().find(|(y, _)| y == x) {
             None => panic!("x contains {} but not y", x),
-            Some((y, q)) => (p - q).abs(),
+            Some((_, q)) => (p - q).abs(),
         }
     ).sum()
 }

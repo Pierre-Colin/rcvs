@@ -111,14 +111,14 @@ fn feasible_basic_vector(a: &mut Matrix,
     -> Result<Vector, SimplexError>
 {
     let (m, n) = a.shape();
-    let mut xb = Vector::from_element(m, 1f64 / m as f64);
+    let mut xb;
     match a.clone().columns(0, m).lu().solve(b) {
         Some(x) => xb = x,
         None => return Err(
             SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
                                      b.clone())
         ),
-    }
+    };
     let mut v = make_auxiliary_objective(&xb, c.len());
     if v.iter().all(|x| *x == 0f64) { return Ok(xb); }
     for _pass in 1.. {
@@ -148,7 +148,6 @@ fn feasible_basic_vector(a: &mut Matrix,
             ),
         }
         //println!("w = {}", w.transpose());
-        let ratio = Vector::from_iterator(w.len(), w.iter().zip(xb.iter()).map(|(w, x)| x / w));
         //println!("x / w = {}", ratio.transpose());
         if let Some((i, _)) = w.into_iter().zip(xb.iter()).enumerate()
                                .filter(|(_, (_, xi))| **xi < 0f64)
@@ -207,7 +206,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
                 SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
                                          b.clone())
             ),
-        }
+        };
         //println!("New xB value: {}", xb.transpose());
         let w: Vector;
         match ablu.solve(&a.column(k)) {
