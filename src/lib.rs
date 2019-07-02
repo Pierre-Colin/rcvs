@@ -9,7 +9,7 @@ use std::{
     fmt,
     clone::Clone,
     collections::{HashMap, hash_map, HashSet},
-    cmp::Eq,
+    cmp::{Eq, Ordering},
     hash::Hash,
 };
 
@@ -152,6 +152,22 @@ impl <A> DuelGraph<A>
         let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
+    }
+
+    // TODO: make an error type
+    pub fn get_optimal_strategy(&self) -> Option<Vec<(A, f64)>> {
+        match (self.get_minimax_strategy(), self.get_maximin_strategy()) {
+            (Ok(minimax), Ok(maximin)) => {
+                Some(match self.compare_strategies(&minimax, &maximin) {
+                    Ordering::Less => maximin,
+                    Ordering::Equal => minimax,
+                    Ordering::Greater => minimax,
+                })
+            },
+            (Err(_), Ok(maximin)) => Some(maximin),
+            (Ok(minimax), Err(_)) => Some(minimax),
+            (Err(_), Err(_)) => None,
+        }
     }
 
     fn strategy_vector(&self, p: &Vec<(A, f64)>) -> Vector {
@@ -301,6 +317,25 @@ mod tests {
     use super::*;
 
     use util::random_strategy;
+
+    fn random_graph(names: &Vec<String>) -> DuelGraph<String> {
+        let n = rand::random::<usize>() % names.len() + 1;
+        let v = names.iter().take(n).cloned().collect();
+        let mut a = Adjacency::from_element(n, n, false);
+        for i in 1..n {
+            for j in 0..i {
+                if rand::random::<f64>() < 0.5f64 {
+                    a[(i, j)] = true;
+                } else if rand::random::<f64>() < 0.5f64 {
+                    a[(j, i)] = true;
+                }
+            }
+        }
+        DuelGraph {
+            v: v,
+            a: a,
+        }
+    }
 
     fn strategy_chooses(p: Vec<(String, f64)>, w: String) -> bool {
         p.into_iter().all(|(v, x)|
@@ -457,6 +492,37 @@ mod tests {
                 }
                 // Stop test
                 if (1..n).all(|i| (0..i).all(|j| !a[(i, j)])) { break; }
+            }
+        }
+    }
+
+    #[test]
+    fn optimal_strategy() {
+        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
+                         "Charlie".to_string(), "Delta".to_string(),
+                         "Echo".to_string(), "Foxtrot".to_string()];
+        for _pass in 0..10000 {
+            println!("Pass {}", _pass);
+            let g = random_graph(&names);
+            match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+                (Ok(minimax), Ok(maximin)) => {
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
+                            "Minimax beats optimal strategy");
+                    assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
+                            "Maximin beats optimal strategy");
+                },
+                (Ok(minimax), Err(_)) => {
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
+                            "Minimax beats optimal strategy");
+                },
+                (Err(_), Ok(maximin)) => {
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
+                            "Maximin beats optimal strategy");
+                },
+                (Err(e), Err(f)) => panic!("Both failed: {}\n{}", e, f),
             }
         }
     }
