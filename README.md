@@ -22,8 +22,7 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 * make the simplex algorithm more numerically stable;
 * give error structures to duel graphs and elections;
 * make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
-* optimize resource management if possible (ballots having ownership of everything, etc.);
-* implement a way to cast a graph ballot which could be used to implement an Electoral College-style agregate of votes.
+* optimize resource management if possible (ballots having ownership of everything, etc.).
 
 ## Dependencies
 The root dependencies are:

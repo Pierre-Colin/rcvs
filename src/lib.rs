@@ -54,7 +54,7 @@ pub fn print_ballot<A: fmt::Display + Eq + Hash>(b: &Ballot<A>) {
     println!("}}")
 }
 
-#[derive(Debug, Hash)]
+#[derive(Clone, Debug, Hash)]
 struct Arrow<A>(A, A);
 
 impl <A: Eq> PartialEq for Arrow<A> {
@@ -195,6 +195,7 @@ impl <A> DuelGraph<A>
     }
 }
 
+#[derive(Clone)]
 pub struct Election<A>
     where A: Eq + Hash + Clone + fmt::Display
 {
@@ -259,24 +260,36 @@ impl <A> Election<A>
 
     pub fn normalize(&mut self) {
         if self.open { return; }
-        let it = self.alternatives.iter();
-        for (x, y) in it.cartesian_product(it) {
-            if let Some(m) = self.duels.get(Arrow::<A>(x, y)) {
-                if let Some(n) = self.duels.get(Arrow::<A>(y, x)) {
-                    match m.cmp(&n) {
-                        Ordering::Less => {
-                            self.duels.remove(Arrow::<A>(x, y));
-                            self.duels.insert(Arrow::<A>(y, x), n - m);
-                        },
-                        Ordering::Equal => {
-                            self.duels.remove(Arrow::<A>(x, y));
-                            self.duels.remove(Arrow::<A>(y, x));
-                        },
-                        Ordering::Greater => {
-                            self.duels.insert(Arrow::<A>(x, y), m - n);
-                            self.duels.remove(Arrow::<A>(y, x));
-                        },
-                    }
+        for x in self.alternatives.iter() {
+            for y in self.alternatives.iter() {
+                let xy = Arrow::<A>(x.clone(), y.clone());
+                let yx = Arrow::<A>(y.clone(), x.clone());
+                // Dirty workaround for the fact `if let` borrows self.duels
+                let m;
+                if let Some(k) = self.duels.get(&xy) {
+                    m = k.clone();
+                } else {
+                    continue;
+                }
+                let n;
+                if let Some(k) = self.duels.get(&yx) {
+                    n = k.clone();
+                } else {
+                    continue;
+                }
+                match m.cmp(&n) {
+                    Ordering::Less => {
+                        self.duels.remove(&xy);
+                        self.duels.insert(yx, 1);
+                    },
+                    Ordering::Equal => {
+                        self.duels.remove(&xy);
+                        self.duels.remove(&yx);
+                    },
+                    Ordering::Greater => {
+                        self.duels.insert(xy, 1);
+                        self.duels.remove(&yx);
+                    },
                 }
             }
         }
@@ -569,6 +582,17 @@ mod tests {
         }
     }
 
+    fn random_ballot(v: &Vec<String>) -> Ballot<String> {
+        let mut b = Ballot::<String>::new();
+        for x in v.iter() {
+            let s = rand::random::<u64>();
+            let r = rand::random::<u64>() % (s + 1);
+            assert!(b.insert(x.to_string(), r, s),
+                    "Insert ({}, {}) failed", r, s);
+        }
+        b
+    }
+
     #[test]
     fn agregate() {
         let names = vec!["Alpha".to_string(), "Bravo".to_string(),
@@ -582,13 +606,7 @@ mod tests {
                 let mut f = Election::<String>::new();
                 let num_ballot = rand::random::<u64>() % 100;
                 for _ in 0..num_ballot {
-                    let mut b = Ballot::<String>::new();
-                    for v in names.iter() {
-                        let s = rand::random::<u64>();
-                        let r = rand::random::<u64>() % (s + 1);
-                        assert!(b.insert(v.to_string(), r, s),
-                                "Insert ({}, {}) failed", r, s);
-                    }
+                    let b = random_ballot(&names);
                     e.cast(b.clone());
                     f.cast(b);
                 }
@@ -604,6 +622,38 @@ mod tests {
                                           "{:?} is {} in e but {} in sum",
                                           a, n, m),
                     None => panic!("{:?} isn't in sum", a),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn normalize() {
+        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
+                         "Charlie".to_string(), "Delta".to_string(),
+                         "Echo".to_string(), "Foxtrot".to_string()];
+        for _pass in 0..100 {
+            let mut e = Election::<String>::new();
+            for _ in 0..500 { e.cast(random_ballot(&names)); }
+            let mut n = e.clone();
+            n.close();
+            n.normalize();
+            for x in n.alternatives.iter() {
+                let xx = Arrow::<String>(x.to_string(), x.to_string());
+                assert_eq!(n.duels.get(&xx), None,
+                           "{} wins over itself", x);
+                for y in n.alternatives.iter() {
+                    let xy = Arrow::<String>(x.to_string(), y.to_string());
+                    let yx = Arrow::<String>(y.to_string(), x.to_string());
+                    if let Some(m) = n.duels.get(&xy) {
+                        assert_eq!(n.duels.get(&yx), None,
+                                   "{} and {} loop", x, y);
+                        assert_eq!(*m, 1, "Normalized election has {}", m);
+                        if let Some(n) = e.duels.get(&yx) {
+                            assert!(e.duels.get(&xy).unwrap() > n,
+                                    "Backward normalization");
+                        }
+                    }
                 }
             }
         }
