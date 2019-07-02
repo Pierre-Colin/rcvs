@@ -19,8 +19,8 @@ This Rust implementation is fairly basic, for I am still a beginner in Rust. In 
 I welcome all help to improve it, be it with Rust or with the algorithms at hand, as long as you explain your work and don't bring in unnecessary dependencies that will make building it more of a hassle ([nalgebra](https://www.nalgebra.org/) is already a big one that I wish I could realistically do without). Please don't propose to replace the simplex algorithm with a wrapper of a pre-existing LP solver. Most of them would interface poorly with the rest of my code and are way too complex for what I am trying to do here. In particular, they tend to be optimized for huge sparse matrices whereas here we're dealing with small dense ones. I did try the [lpsolve](https://crates.io/crates/lpsolve) crate, and it is too verbose as it is.
 
 ### To-dos
-* enhance the simplex algorithm by making it more numerically stable;
-* more tests;
+* make the simplex algorithm more numerically stable;
+* give error structures to duel graphs and elections;
 * make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
 * optimize resource management if possible (ballots having ownership of everything, etc.);
 * implement a way to cast a graph ballot which could be used to implement an Electoral College-style agregate of votes.
