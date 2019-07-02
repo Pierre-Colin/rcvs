@@ -46,12 +46,14 @@ impl <A: Hash + Eq> Ballot<A> {
     }
 }
 
-pub fn print_ballot<A: fmt::Display + Eq + Hash>(b: &Ballot<A>) {
-    println!("Ballot {{");
-    for (a, r) in b.m.iter() {
-        println!("    {} ranks {}", a, r);
+impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Ballot {{")?;
+        for (a, r) in self.m.iter() {
+            writeln!(f ,"    {} ranks {}", a, r)?;
+        }
+        write!(f, "}}")
     }
-    println!("}}")
 }
 
 #[derive(Clone, Debug, Hash)]
@@ -196,17 +198,13 @@ impl <A> DuelGraph<A>
 }
 
 #[derive(Clone)]
-pub struct Election<A>
-    where A: Eq + Hash + Clone + fmt::Display
-{
+pub struct Election<A: Clone + Eq + Hash> {
     alternatives: HashSet<A>,
     duels: HashMap<Arrow<A>, u64>,
     open: bool,
 }
 
-impl <A> Election<A>
-    where A: fmt::Display + Eq + Hash + Clone + fmt::Debug
-{
+impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     pub fn new() -> Election<A> {
         Election::<A> {
             alternatives: HashSet::new(),
@@ -341,7 +339,7 @@ impl <A> Election<A>
 }
 
 impl <A> fmt::Display for Election<A>
-    where A: Eq + Hash + Clone + fmt::Display
+    where A: Clone + Eq + Hash + fmt::Display
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Election {{")?;
@@ -556,9 +554,10 @@ mod tests {
         let names = vec!["Alpha".to_string(), "Bravo".to_string(),
                          "Charlie".to_string(), "Delta".to_string(),
                          "Echo".to_string(), "Foxtrot".to_string()];
-        for _pass in 0..10000 {
+        for _pass in 0..1000 {
             println!("Pass {}", _pass);
             let g = random_graph(&names);
+            println!("{}", g);
             match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
                 (Ok(minimax), Ok(maximin)) => {
                     let opt = g.get_optimal_strategy().unwrap();
