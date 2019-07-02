@@ -136,10 +136,7 @@ impl <A> DuelGraph<A>
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
         let b = na::DVector::from_element(n, 1f64);
-        let c = na::DVector::from_iterator(
-            2 * n,
-            repeat(0f64).take(n).chain(repeat(-1f64).take(n))
-        );
+        let c = na::DVector::from_element(n, -1f64);
         let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
@@ -152,10 +149,7 @@ impl <A> DuelGraph<A>
         let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
         let b = na::DVector::from_element(n, -1f64);
-        let c = na::DVector::from_iterator(
-            2 * n,
-            repeat(0f64).take(n).chain(repeat(1f64).take(n))
-        );
+        let c = na::DVector::from_element(n, 1f64);
         let x = simplex::simplex(&m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
         Ok(self.v.iter().cloned().zip(p.into_iter()).collect())

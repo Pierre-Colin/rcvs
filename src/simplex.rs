@@ -60,6 +60,13 @@ fn make_a(constraints: &Matrix) -> Matrix {
     a
 }
 
+fn make_c(cost: &Vector, m: usize) -> Vector {
+    Vector::from_iterator(
+        m + cost.len(),
+        repeat(0f64).take(m).chain(cost.iter().cloned())
+    )
+}
+
 fn make_indices(m: usize, n: usize) -> Vec<Option<usize>> {
     repeat(None).take(m).chain((0..n).map(|i| Some(i))).collect()
 }
@@ -169,7 +176,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     let (m, n) = constraints.shape();
     let mut a = make_a(constraints);
     // 1. Find a feasible basis
-    let mut c = cost.clone();
+    let mut c = make_c(&cost, m);
     let mut ind = make_indices(m, n);
     let mut xb = feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
     //println!("b = {}", b.transpose());
@@ -274,7 +281,7 @@ mod tests {
         m[(1, 1)] = 5f64;
         m[(1, 2)] = 3f64;
         let b = Vector::from_iterator(2, vec![10f64, 15f64].into_iter());
-        let c = Vector::from_iterator(5, vec![0f64, 0f64, -2f64, -3f64, -4f64].into_iter());
+        let c = Vector::from_iterator(3, vec![-2f64, -3f64, -4f64].into_iter());
         let x = simplex(&m, &c, &b).unwrap();
         assert!(x.iter().take(2).all(|x| *x < 0.000001f64));
         assert!(f64::abs(x.iter().last().unwrap() - 5f64) < 0.000001f64);
@@ -294,7 +301,7 @@ mod tests {
             ].into_iter()
         ).transpose();
         let b = Vector::from_element(6, 1f64);
-        let c = Vector::from_iterator(12, repeat(0f64).take(6).chain(repeat(-1f64).take(6)));
+        let c = Vector::from_element(6, -1f64);
         println!("Running simplex with\nM = {}\nb = {}\nc = {}", m, b.transpose(), c.transpose());
         let x = simplex(&m, &c, &b).unwrap();
         let sixth = 1f64 / 6f64;

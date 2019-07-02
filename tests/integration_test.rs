@@ -194,8 +194,8 @@ fn condorcet_strategies_optimal() {
         "Echo",
         "Foxtrot",
     ].iter().map(|x| x.to_string()).collect();
-    let num_elections = 1000;
-    let num_strategies = 1000;
+    let num_elections = 500;
+    let num_strategies = 500;
     let mut failed = 0u64;
     for _enum in 0..num_elections {
         println!("Election #{}", _enum);
@@ -224,7 +224,6 @@ fn condorcet_strategies_optimal() {
                         println!("Minimax: {:?}", minimax);
                         println!("Maximin: {:?}", maximin);
                         println!("{:?} beats both minimax and maximin", p);
-                        panic!("Stopping...");
                         failed += 1;
                     }
                 }
@@ -237,7 +236,6 @@ fn condorcet_strategies_optimal() {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("{:?} beats minimax", p);
-                        panic!("Stopping...");
                         failed += 1;
                     }
                 }
@@ -250,7 +248,6 @@ fn condorcet_strategies_optimal() {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);
                         println!("{:?} beats maximin", p);
-                        panic!("Stopping...");
                         failed += 1;
                     }
                 }
