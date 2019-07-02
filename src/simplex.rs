@@ -108,7 +108,7 @@ fn feasible_basic_vector(a: &mut Matrix,
                          b: &Vector,
                          c: &mut Vector,
                          ind: &mut Vec<Option<usize>>)
-    -> Result<Vector, SimplexError>
+    -> Result<(), SimplexError>
 {
     let (m, n) = a.shape();
     let mut xb;
@@ -120,7 +120,7 @@ fn feasible_basic_vector(a: &mut Matrix,
         ),
     };
     let mut v = make_auxiliary_objective(&xb, c.len());
-    if v.iter().all(|x| *x == 0f64) { return Ok(xb); }
+    if v.iter().all(|x| *x == 0f64) { return Ok(()); }
     for _pass in 1.. {
         if _pass > 10 * cmp::max(m, n) { return Err(SimplexError::Loop); }
         //println!("Pass {}", _pass);
@@ -165,7 +165,7 @@ fn feasible_basic_vector(a: &mut Matrix,
         }
     }
     //println!("Finished phase 1 with xb = {}", xb.transpose());
-    Ok(xb)
+    Ok(())
 }
 
 // NOTE: prints are for debugging purposes and should be removed eventually
@@ -177,7 +177,8 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     // 1. Find a feasible basis
     let mut c = make_c(&cost, m);
     let mut ind = make_indices(m, n);
-    let mut xb = feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
+    let mut xb;
+    feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
     //println!("b = {}", b.transpose());
     for _pass in 1.. {
         if _pass > 10 * cmp::max(m, n) { return Err(SimplexError::Loop); }

@@ -368,15 +368,6 @@ mod tests {
                 "Strategy for Condorcet paradox isn't uniform");
     }
 
-    fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
-        x.iter().map(|(x, p)|
-            match y.iter().find(|(y, _)| y == x) {
-                None => panic!("x contains {} but not y", x),
-                Some((_, q)) => (p - q).abs(),
-            }
-        ).sum()
-    }
-
     // Last name commented out for convenience (doubles testing time)
     #[test]
     fn tournament() {

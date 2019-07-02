@@ -1,3 +1,11 @@
+/*
+ * NOTE:
+ * This file is intended to provide functions that may be used in various
+ * places in the project. Most of these functions are public, but are not
+ * guaranteed to be supported in the future. They should only be used inside
+ * the crate and in integration tests.
+ */
+
 fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
     where F: Fn(&A, &A) -> std::cmp::Ordering
 {
@@ -60,4 +68,13 @@ pub fn random_strategy<A: Clone>(a: &Vec<A>) -> Vec<(A, f64)> {
                                                                         .sum();
     p.iter_mut().for_each(|x| *x /= s);
     a.iter().cloned().zip(p.into_iter()).collect()
+}
+
+pub fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
+    x.iter().map(|(x, p)|
+        match y.iter().find(|(y, _)| y == x) {
+            None => panic!("x contains {} but not y", x),
+            Some((_, q)) => (p - q).abs(),
+        }
+    ).sum()
 }
