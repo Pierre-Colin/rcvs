@@ -191,7 +191,7 @@ fn condorcet_strategies_optimal() {
     for _enum in 0..num_elections {
         println!("Election #{}", _enum);
         let mut e = rcvs::Election::<String>::new();
-        for _bnum in 0..500 {
+        for _ in 0..500 {
             let rank: Vec<u64> = shuffle(&(0..(names.len() as u64)).collect());
             let mut b = rcvs::Ballot::<String>::new();
             names.iter().zip(rank.into_iter()).for_each(|(v, r)|
@@ -205,9 +205,7 @@ fn condorcet_strategies_optimal() {
         match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
             (Ok(minimax), Ok(maximin)) => {
                 println!("Both worked with {}", strategy_distance(&minimax, &maximin));
-                println!("Minimax: {:?}", minimax);
-                println!("Maximin: {:?}", maximin);
-                for _snum in 0..num_strategies {
+                for _ in 0..num_strategies {
                     let p = random_strategy(&names);
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
                         && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
@@ -221,7 +219,7 @@ fn condorcet_strategies_optimal() {
             },
             (Ok(minimax), Err(e)) => {
                 println!("Maximin failed: {}", e);
-                for _snum in 0..1000 {
+                for _ in 0..1000 {
                     let p = random_strategy(&names);
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
@@ -233,7 +231,7 @@ fn condorcet_strategies_optimal() {
             },
             (Err(e), Ok(maximin)) => {
                 println!("Minimax failed: {}", e);
-                for _snum in 0..1000 {
+                for _ in 0..1000 {
                     let p = random_strategy(&names);
                     if g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
@@ -247,5 +245,6 @@ fn condorcet_strategies_optimal() {
         };
     }
     let failure_rate = failed as f64 / (num_elections * num_strategies) as f64;
-    assert!(failure_rate < 1e-6, "Failure rate was too big: {}", failure_rate);
+    println!("Failure rate: {}", failure_rate);
+    assert!(failure_rate < 1e-6, "Failure rate was too big");
 }
