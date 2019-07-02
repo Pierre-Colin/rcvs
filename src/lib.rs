@@ -86,10 +86,12 @@ impl <A> fmt::Display for DuelGraph<A>
 impl <A> DuelGraph<A>
     where A: fmt::Debug + Clone + std::cmp::Eq
 {
-    pub fn get_source(&self) -> Option<A> {
+    fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize))
+        -> Option<A>
+    {
         let mut n: Option<A> = None;
         for i in 0..self.v.len() {
-            if (0..self.v.len()).all(|j| !self.a[(j, i)]) {
+            if (0..self.v.len()).all(|j| !self.a[f(i, j)]) {
                 match n {
                     Some(_) => return None,
                     None => n = Some(self.v[i].clone()),
@@ -99,17 +101,12 @@ impl <A> DuelGraph<A>
         n
     }
 
+    pub fn get_source(&self) -> Option<A> {
+        self.get_special_node(|i, j| (j, i))
+    }
+
     pub fn get_sink(&self) -> Option<A> {
-        let mut n: Option<A> = None;
-        for i in 0..self.v.len() {
-            if (0..self.v.len()).all(|j| !self.a[(i, j)]) {
-                match n {
-                    Some(_) => return None,
-                    None => n = Some(self.v[i].clone()),
-                }
-            }
-        }
-        n
+        self.get_special_node(|i, j| (i, j))
     }
 
     fn adjacency_to_matrix(a: &Adjacency) -> Matrix {
@@ -449,6 +446,7 @@ mod tests {
         for b in b.iter().cloned() { e.cast(b); }
         let g = e.get_duel_graph();
         assert_eq!(g.get_source(), None);
+        assert_eq!(g.get_sink(), None);
         println!("Minimax {:?}", g.get_minimax_strategy().unwrap());
         println!("Maximin {:?}", g.get_maximin_strategy().unwrap());
         assert!(g.get_minimax_strategy().unwrap()
