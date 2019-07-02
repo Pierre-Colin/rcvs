@@ -54,7 +54,7 @@ pub fn print_ballot<A: fmt::Display + Eq + Hash>(b: &Ballot<A>) {
     println!("}}")
 }
 
-#[derive(Hash)]
+#[derive(Debug, Hash)]
 struct Arrow<A>(A, A);
 
 impl <A: Eq> PartialEq for Arrow<A> {
@@ -218,10 +218,12 @@ impl <A> Election<A>
         self.duels.get(&Arrow::<A>(x.to_owned(), y.to_owned())).cloned()
     }
 
+    pub fn close(&mut self) {
+        self.open = false;
+    }
+
     pub fn cast(&mut self, ballot: Ballot<A>) -> bool {
-        if !self.open {
-            return false;
-        }
+        if !self.open { return false; }
         for x in ballot.iter() {
             let (a, r) = x;
             self.alternatives.insert(a.to_owned());
@@ -238,6 +240,46 @@ impl <A> Election<A>
             }
         }
         true
+    }
+
+    pub fn agregate(&mut self, sub: Election<A>) -> bool {
+        if !self.open || sub.open { return false; }
+        for x in sub.alternatives.into_iter() {
+            self.alternatives.insert(x);
+        }
+        for (Arrow::<A>(x, y), m) in sub.duels.into_iter() {
+            let n = match self.get(&x, &y) {
+                Some(k) => m + k,
+                None => m,
+            };
+            self.duels.insert(Arrow::<A>(x, y), n);
+        }
+        true
+    }
+
+    pub fn normalize(&mut self) {
+        if self.open { return; }
+        let it = self.alternatives.iter();
+        for (x, y) in it.cartesian_product(it) {
+            if let Some(m) = self.duels.get(Arrow::<A>(x, y)) {
+                if let Some(n) = self.duels.get(Arrow::<A>(y, x)) {
+                    match m.cmp(&n) {
+                        Ordering::Less => {
+                            self.duels.remove(Arrow::<A>(x, y));
+                            self.duels.insert(Arrow::<A>(y, x), n - m);
+                        },
+                        Ordering::Equal => {
+                            self.duels.remove(Arrow::<A>(x, y));
+                            self.duels.remove(Arrow::<A>(y, x));
+                        },
+                        Ordering::Greater => {
+                            self.duels.insert(Arrow::<A>(x, y), m - n);
+                            self.duels.remove(Arrow::<A>(y, x));
+                        },
+                    }
+                }
+            }
+        }
     }
 
     pub fn add_alternative(&mut self, v: &A) -> bool {
@@ -523,6 +565,46 @@ mod tests {
                             "Maximin beats optimal strategy");
                 },
                 (Err(e), Err(f)) => panic!("Both failed: {}\n{}", e, f),
+            }
+        }
+    }
+
+    #[test]
+    fn agregate() {
+        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
+                         "Charlie".to_string(), "Delta".to_string(),
+                         "Echo".to_string(), "Foxtrot".to_string()];
+        for _ in 0..50 {
+            let mut e = Election::<String>::new();
+            let mut sum = Election::<String>::new();
+            let num_district = rand::random::<u64>() % 49 + 2;
+            for _ in 0..num_district {
+                let mut f = Election::<String>::new();
+                let num_ballot = rand::random::<u64>() % 100;
+                for _ in 0..num_ballot {
+                    let mut b = Ballot::<String>::new();
+                    for v in names.iter() {
+                        let s = rand::random::<u64>();
+                        let r = rand::random::<u64>() % (s + 1);
+                        assert!(b.insert(v.to_string(), r, s),
+                                "Insert ({}, {}) failed", r, s);
+                    }
+                    e.cast(b.clone());
+                    f.cast(b);
+                }
+                f.close();
+                sum.agregate(f);
+            }
+            // e and sum must be identical
+            assert_eq!(e.alternatives, sum.alternatives,
+                       "Alternative lists differ");
+            for (a, n) in e.duels.into_iter() {
+                match sum.duels.get(&a) {
+                    Some(m) => assert_eq!(*m, n,
+                                          "{:?} is {} in e but {} in sum",
+                                          a, n, m),
+                    None => panic!("{:?} isn't in sum", a),
+                }
             }
         }
     }
