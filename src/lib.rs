@@ -6,10 +6,10 @@ mod simplex;
 pub mod util;
 
 use std::{
-    fmt,
     clone::Clone,
-    collections::{HashMap, hash_map, HashSet},
     cmp::{Eq, Ordering},
+    collections::{HashMap, hash_map, HashSet},
+    fmt,
     hash::Hash,
 };
 
@@ -72,9 +72,7 @@ pub struct DuelGraph<A: fmt::Debug> {
     a: Adjacency,
 }
 
-impl <A> fmt::Display for DuelGraph<A>
-    where A: fmt::Debug
-{
+impl <A: fmt::Debug> fmt::Display for DuelGraph<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Graph {{")?;
         writeln!(f, "Alternatives: {:?}", self.v)?;
@@ -83,9 +81,7 @@ impl <A> fmt::Display for DuelGraph<A>
     }
 }
 
-impl <A> DuelGraph<A>
-    where A: fmt::Debug + Clone + std::cmp::Eq
-{
+impl <A: Clone + Eq + fmt::Debug> DuelGraph<A> {
     fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize))
         -> Option<A>
     {
@@ -336,9 +332,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     }
 }
 
-impl <A> fmt::Display for Election<A>
-    where A: Clone + Eq + Hash + fmt::Display
-{
+impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Election {{")?;
         for x in self.duels.iter() {
@@ -349,9 +343,7 @@ impl <A> fmt::Display for Election<A>
     }
 }
 
-pub fn play_strategy<A>(p: &Vec<(A, f64)>) -> A
-    where A: std::fmt::Debug + Clone
-{
+pub fn play_strategy<A: Clone + std::fmt::Debug>(p: &Vec<(A, f64)>) -> A {
     // Sort the array for better numerical accuracy
     let a = quick_sort(p.clone().to_vec(),
                        |(_, x), (_, y)| x.partial_cmp(y).unwrap().reverse());
