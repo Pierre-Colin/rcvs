@@ -426,11 +426,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
                 let (b, s) = y;
                 self.alternatives.insert(b.to_owned());
                 if r > s {
-                    let n = match self.get(a, b) {
-                        Some(m) => m + 1,
-                        None => 1,
-                    };
-                    self.duels.insert(Arrow::<A>(a.to_owned(), b.to_owned()), n);
+                    let n = self.get(a, b).unwrap_or(0) + 1;
+                    self.duels.insert(Arrow::<A>(a.to_owned(), b.to_owned()),
+                                      n);
                 }
             }
         }
@@ -443,10 +441,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
             self.alternatives.insert(x);
         }
         for (Arrow::<A>(x, y), m) in sub.duels.into_iter() {
-            let n = match self.get(&x, &y) {
-                Some(k) => m + k,
-                None => m,
-            };
+            let n = m + self.get(&x, &y).unwrap_or(0);
             self.duels.insert(Arrow::<A>(x, y), n);
         }
         true
