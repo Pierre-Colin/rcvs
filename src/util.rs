@@ -5,6 +5,10 @@
  * guaranteed to be supported in the future. They should only be used inside
  * the crate and in integration tests.
  */
+use std::{
+    cmp::Eq,
+    hash::Hash,
+};
 
 fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
     where F: Fn(&A, &A) -> std::cmp::Ordering
@@ -60,23 +64,6 @@ pub fn shuffle<V: Clone>(x: &Vec<V>) -> Vec<V> {
         y.swap(i, j);
     }
     y
-}
-
-pub fn random_strategy<A: Clone>(a: &Vec<A>) -> Vec<(A, f64)> {
-    let mut p: Vec<f64> = a.iter().map(|_| rand::random::<f64>()).collect();
-    let s: f64 = quick_sort(p.clone(), |x, y| x.partial_cmp(y).unwrap()).iter()
-                                                                        .sum();
-    p.iter_mut().for_each(|x| *x /= s);
-    a.iter().cloned().zip(p.into_iter()).collect()
-}
-
-pub fn strategy_distance(x: &Vec<(String, f64)>, y: &Vec<(String, f64)>) -> f64 {
-    x.iter().map(|(x, p)|
-        match y.iter().find(|(y, _)| y == x) {
-            None => panic!("x contains {} but not y", x),
-            Some((_, q)) => (p - q).abs(),
-        }
-    ).sum()
 }
 
 /*

@@ -5,7 +5,7 @@ extern crate rand;
 use std::cmp::Ordering;
 
 use rcvs::{
-    util::{shuffle, random_strategy, strategy_distance},
+    util::shuffle,
     string_vec,
 };
 
@@ -16,18 +16,10 @@ fn ovo_ballot(e: &mut rcvs::Election<String>, name: &str, other: &str) {
     e.cast(b);
 }
 
-fn ovo_wins(p: Vec<(String, f64)>, w: Option<String>) -> bool {
+fn ovo_wins(p: rcvs::Strategy<String>, w: Option<String>, names: &[String]) -> bool {
     match w {
-        None => p.into_iter().all(|(_, x)| f64::abs(x - 0.5f64) < 0.000001f64),
-        Some(x) => {
-            if let Some((n, _)) = p.iter()
-                                   .enumerate()
-                                   .find(|(_, (e, _))| e == x.as_str()) {
-                1f64 - p[n].1 < 0.000001f64 && p[1usize - n].1 < 0.000001f64
-            } else {
-                false
-            }
-        },
+        None => p.is_uniform(&names, 1e-6),
+        Some(x) => p.almost_chooses(&x, 1e-6),
     }
 }
 
@@ -47,7 +39,8 @@ fn one_versus_one() {
             Ordering::Equal => assert_eq!(s, None),
             Ordering::Greater => assert_eq!(s, Some("Alpha".to_string())),
         }
-        assert!(ovo_wins(p, s), "Minimax strategy doesn't elect winner");
+        assert!(ovo_wins(p, s, &string_vec!["Alpha", "Bravo"]),
+                "Minimax strategy doesn't elect winner");
     }
 }
 
@@ -63,14 +56,9 @@ fn cp_ballot(e: &mut rcvs::Election<String>, names: Vec<String>) {
     e.cast(b);
 }
 
-fn is_uniform(p: Vec<(String, f64)>) -> bool {
-    let y = 1f64 / (p.len() as f64);
-    p.into_iter().all(|(_, x)| f64::abs(x - y) < 0.001f64)
-}
-
 #[test]
 fn condorcet_paradox() {
-    let names = ["Alpha", "Bravo", "Charlie"];
+    let names = string_vec!["Alpha", "Bravo", "Charlie"];
     let mut e = rcvs::Election::<String>::new();
     for i in 0..3 {
         let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string())
@@ -81,16 +69,10 @@ fn condorcet_paradox() {
     assert_eq!(g.get_source(), None);
     let p = g.get_minimax_strategy().unwrap();
     println!("{:?}", p);
-    assert!(is_uniform(p));
+    assert!(p.is_uniform(&names, 1e-6));
     let p = g.get_maximin_strategy().unwrap();
     println!("{:?}", p);
-    assert!(is_uniform(p));
-}
-
-fn strategy_chooses(p: Vec<(String, f64)>, w: &String) -> bool {
-    p.into_iter().all(|(v, x)|
-        if v == *w { 1f64 - x < 0.000001f64 } else { x < 0.000001f64 }
-    )
+    assert!(p.is_uniform(&names, 1e-6));
 }
 
 #[test]
@@ -121,7 +103,8 @@ fn condorcet_winner() {
                 assert!(e.cast(b), "Election was closed");
             }
             assert_eq!(e.get_condorcet_winner(), Some(v[s].clone()));
-            assert!(strategy_chooses(e.get_minimax_strategy().unwrap(), &v[s]));
+            assert!(e.get_minimax_strategy().unwrap().almost_chooses(&v[s], 1e-6));
+            assert!(e.get_maximin_strategy().unwrap().almost_chooses(&v[s], 1e-6));
         }
     }
 }
@@ -153,15 +136,15 @@ fn five_non_uniform() {
     let maximin = g.get_maximin_strategy().unwrap();
     println!("{:?}\n{:?}", minimax, maximin);
     // Panic to print during tests (dirty but too lazy to do it the right way)
-    let result = vec![
+    let result = rcvs::Strategy::Mixed(vec![
         ("Alpha".to_string(), 1f64 / 3f64),
         ("Bravo".to_string(), 1f64 / 9f64),
         ("Charlie".to_string(), 1f64 / 9f64),
         ("Delta".to_string(), 1f64 / 9f64),
         ("Echo".to_string(), 1f64 / 3f64)
-    ];
-    assert!(strategy_distance(&minimax, &result) < 1e-6);
-    assert!(strategy_distance(&maximin, &result) < 1e-6);
+    ]);
+    assert!(minimax.distance(&result) < 1e-6);
+    assert!(maximin.distance(&result) < 1e-6);
 }
 
 #[test]
@@ -174,7 +157,7 @@ fn simulate_election() {
         cp_ballot(&mut e, v);
     }
     for _ in 0..10 {
-        println!("Winner: {}", e.get_randomized_winner().unwrap());
+        println!("Winner: {}", e.get_randomized_winner().unwrap().unwrap());
     }
 }
 
@@ -201,9 +184,9 @@ fn condorcet_strategies_optimal() {
         if let Some(x) = g.get_sink() { println!("Loser: {}", x); }
         match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
             (Ok(minimax), Ok(maximin)) => {
-                println!("Both worked with {}", strategy_distance(&minimax, &maximin));
+                println!("Both worked with {}", minimax.distance(&maximin));
                 for _ in 0..num_strategies {
-                    let p = random_strategy(&names);
+                    let p = rcvs::Strategy::random_mixed(&names);
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
                         && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
@@ -217,7 +200,7 @@ fn condorcet_strategies_optimal() {
             (Ok(minimax), Err(e)) => {
                 println!("Maximin failed: {}", e);
                 for _ in 0..1000 {
-                    let p = random_strategy(&names);
+                    let p = rcvs::Strategy::random_mixed(&names);
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
@@ -229,7 +212,7 @@ fn condorcet_strategies_optimal() {
             (Err(e), Ok(maximin)) => {
                 println!("Minimax failed: {}", e);
                 for _ in 0..1000 {
-                    let p = random_strategy(&names);
+                    let p = rcvs::Strategy::random_mixed(&names);
                     if g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);

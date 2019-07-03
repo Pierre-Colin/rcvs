@@ -57,6 +57,151 @@ impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum Strategy<A: Clone + Eq + Hash> {
+    Pure(A),
+    Mixed(Vec<(A, f64)>),
+}
+
+impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Strategy::Pure(x) => write!(f, "Pure {}", x),
+            Strategy::Mixed(v) => {
+                writeln!(f, "Mixed {{")?;
+                for (x, p) in v.iter() {
+                    writeln!(f, "    {}% {}", 100f64 * p, x)?;
+                }
+                write!(f, "}}")
+            },
+        }
+    }
+}
+
+impl <A: Clone + Eq + Hash> Strategy<A> {
+    pub fn random_mixed(v: &[A]) -> Self {
+        let n = v.len();
+        let mut u: Vec<(A, f64)> =
+            v.iter().map(|x| (x.to_owned(), rand::random::<f64>())).collect();
+        let sum: f64 = quick_sort(
+            u.clone(),
+            |(_, p), (_, q)| p.partial_cmp(&q).unwrap()
+        ).into_iter().map(|(_, p)| p).sum();
+        u.iter_mut().for_each(|(_, p)| *p /= sum);
+        Strategy::Mixed(u)
+    }
+
+    pub fn play(&self) -> Option<A> {
+        match self {
+            Strategy::Pure(x) => Some(x.to_owned()),
+            Strategy::Mixed(v) => {
+                if v.is_empty() {
+                    None
+                } else {
+                    let sorted = util::quick_sort(
+                        v.to_vec(),
+                        |(_, x), (_, y)| x.partial_cmp(&y).unwrap()
+                    );
+                    let r = rand::random::<f64>();
+                    let mut acc = 0f64;
+                    for (x, p) in sorted.iter() {
+                        acc += p;
+                        if acc > r { return Some(x.to_owned()); }
+                    }
+                    Some(sorted.iter().last().unwrap().0.to_owned())
+                }
+            },
+        }
+    }
+
+    pub fn is_pure(&self) -> bool {
+        if let Strategy::Pure(_) = self { true } else { false }
+    }
+
+    pub fn is_mixed(&self) -> bool {
+        !self.is_pure()
+    }
+
+    pub fn to_mixed(&self) -> Strategy<A> {
+        match self {
+            Strategy::Pure(x) => Strategy::Mixed(vec![(x.to_owned(), 1f64)]),
+            _ => self.to_owned(),
+        }
+    }
+
+    fn unwrap_pure(&self) -> A {
+        match self {
+            Strategy::Pure(x) => x.to_owned(),
+            Strategy::Mixed(_) => panic!("Strategy is not pure"),
+        }
+    }
+
+    fn unwrap_mixed(&self) -> Vec<(A, f64)> {
+        match self {
+            Strategy::Pure(_) => panic!("Strategy is not mixed"),
+            Strategy::Mixed(v) => v.to_owned(),
+        }
+    }
+
+    pub fn distance(&self, other: &Strategy<A>) -> f64 {
+        let sm = self.to_mixed().unwrap_mixed();
+        let om = other.to_mixed().unwrap_mixed();
+        // Alternative lists may differ; find the union
+        let mut alternatives = HashSet::new();
+        for (x, _) in sm.iter().chain(om.iter()) {
+            alternatives.insert(x);
+        }
+        let mut diff = Vec::new();
+        for x in alternatives.into_iter() {
+            match (sm.iter().find(|(y, _)| y == x),
+                   om.iter().find(|(y, _)| y == x))
+            {
+                (Some((_, p)), Some((_, q))) => diff.push((p - q).abs()),
+                (Some((_, p)), None) => diff.push(*p),
+                (None, Some((_, p))) => diff.push(*p),
+                (None, None) => (),
+            }
+        }
+        // Sum in increasing order for better numerical stability
+        quick_sort(diff, |x, y| x.partial_cmp(&y).unwrap()).into_iter().sum()
+    }
+
+    pub fn almost_chooses(&self, x: &A, epsilon: f64) -> bool {
+        self.distance(&Strategy::Pure(x.to_owned())) < epsilon
+    }
+
+    pub fn support(&self) -> Vec<A> {
+        match self {
+            Strategy::Pure(x) => vec![x.to_owned()],
+            Strategy::Mixed(v) => v.iter().map(|(x, _)| x.to_owned()).collect(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Strategy::Pure(_) => 1usize,
+            Strategy::Mixed(v) => v.len(),
+        }
+    }
+
+    pub fn is_uniform(&self, v: &[A], epsilon: f64) -> bool {
+        match self {
+            Strategy::Pure(x) => v.get(0) == Some(x),
+            Strategy::Mixed(u) => {
+                if u.len() != v.len() { return false; }
+                for x in v.iter() {
+                    if u.iter().find(|(y, _)| y == x) == None { return false; }
+                }
+                let p = 1f64 / u.len() as f64;
+                let uni = Strategy::Mixed(
+                    v.iter().map(|x| (x.to_owned(), p)).collect()
+                );
+                self.distance(&uni) < epsilon
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Hash)]
 struct Arrow<A>(A, A);
 
@@ -76,6 +221,7 @@ pub struct DuelGraph<A: fmt::Debug> {
 #[derive(Debug)]
 pub enum ElectionError {
     BothFailed(simplex::SimplexError, simplex::SimplexError),
+    SimplexFailed(simplex::SimplexError),
     ElectionClosed,
     ElectionOpen,
 }
@@ -88,9 +234,17 @@ impl fmt::Display for ElectionError {
                 writeln!(f, " * minimax: {}", a)?;
                 writeln!(f, " * maximin: {}", b)
             },
+            ElectionError::SimplexFailed(e) =>
+                write!(f, "Simplex algorithm failed: {}", e),
             ElectionError::ElectionClosed => write!(f, "Election is closed"),
             ElectionError::ElectionOpen => write!(f, "Election is open"),
         }
+    }
+}
+
+impl From<simplex::SimplexError> for ElectionError {
+    fn from(error: simplex::SimplexError) -> Self {
+        ElectionError::SimplexFailed(error)
     }
 }
 
@@ -99,6 +253,8 @@ impl Error for ElectionError {
         match self {
             ElectionError::BothFailed(_, _) =>
                 "Both minimax and maximin strategies failed to be solved",
+            ElectionError::SimplexFailed(_) =>
+                "The simplex algorithm failed to compute the strategy",
             ElectionError::ElectionClosed => "Election is already closed",
             ElectionError::ElectionOpen => "Election is still open",
         }
@@ -108,6 +264,7 @@ impl Error for ElectionError {
         // in case of multiple cause, no other choice but to return itself
         match self {
             ElectionError::BothFailed(_, _) => Some(self),
+            ElectionError::SimplexFailed(e) => Some(e),
             _ => None,
         }
     }
@@ -122,7 +279,7 @@ impl <A: fmt::Debug> fmt::Display for DuelGraph<A> {
     }
 }
 
-impl <A: Clone + Eq + fmt::Debug> DuelGraph<A> {
+impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize))
         -> Option<A>
     {
@@ -165,18 +322,18 @@ impl <A: Clone + Eq + fmt::Debug> DuelGraph<A> {
     }
 
     fn compute_strategy(&self, m: &Matrix, bval: f64, cval: f64)
-        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+        -> Result<Strategy<A>, simplex::SimplexError>
     {
         let n = self.v.len();
         let b = Vector::from_element(n, bval);
         let c = Vector::from_element(n, cval);
         let x = simplex::simplex(m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
-        Ok(self.v.iter().cloned().zip(p.into_iter()).collect())
+        Ok(Strategy::Mixed(self.v.iter().cloned().zip(p.into_iter()).collect()))
     }
 
     pub fn get_minimax_strategy(&self)
-        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+        -> Result<Strategy<A>, simplex::SimplexError>
     {
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
@@ -184,46 +341,60 @@ impl <A: Clone + Eq + fmt::Debug> DuelGraph<A> {
     }
 
     pub fn get_maximin_strategy(&self)
-        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+        -> Result<Strategy<A>, simplex::SimplexError>
     {
         let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
         self.compute_strategy(&m, -1f64, 1f64)
     }
 
-    pub fn get_optimal_strategy(&self) -> Result<Vec<(A, f64)>, ElectionError> {
-        match (self.get_minimax_strategy(), self.get_maximin_strategy()) {
-            (Ok(minimax), Ok(maximin)) => {
-                Ok(match self.compare_strategies(&minimax, &maximin) {
-                    Ordering::Less => maximin,
-                    _ => minimax,
-                })
+    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
+        match self.get_source() {
+            Some(x) => Ok(Strategy::Pure(x)),
+            None => {
+                match (self.get_minimax_strategy(), self.get_maximin_strategy())
+                {
+                    (Ok(minimax), Ok(maximin)) => {
+                        Ok(match self.compare_strategies(&minimax, &maximin) {
+                            Ordering::Less => maximin,
+                            _ => minimax,
+                        })
+                    },
+                    (Err(_), Ok(maximin)) => Ok(maximin),
+                    (Ok(minimax), Err(_)) => Ok(minimax),
+                    (Err(e), Err(f)) => Err(ElectionError::BothFailed(e, f)),
+                }
             },
-            (Err(_), Ok(maximin)) => Ok(maximin),
-            (Ok(minimax), Err(_)) => Ok(minimax),
-            (Err(e), Err(f)) => Err(ElectionError::BothFailed(e, f)),
         }
     }
 
-    fn strategy_vector(&self, p: &Vec<(A, f64)>) -> Vector {
-        Vector::from_iterator(self.v.len(), self.v.iter().map(|e|
-            match p.iter().find(|(u, _)| *u == *e) {
-                None => panic!("Alternative not found"),
-                Some((_, p)) => p.clone(),
-            }
-        ))
+    fn strategy_vector(&self, p: &Strategy<A>) -> Vector {
+        match p {
+            Strategy::Pure(x) => Vector::from_iterator(
+                self.v.len(),
+                self.v.iter().map(|e| if e == x { 1f64 } else { 0f64 })
+            ),
+            Strategy::Mixed(u) => Vector::from_iterator(
+                self.v.len(),
+                self.v.iter().map(|x|
+                    match u.iter().find(|(y, _)| *y == *x) {
+                        None => panic!("Alternative not found"),
+                        Some((_, p)) => p.clone(),
+                    }
+                )
+            ),
+        }
     }
 
-    pub fn confront_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
-        -> f64
-    {
+    pub fn confront_strategies(&self, x: &Strategy<A>, y: &Strategy<A>) -> f64 {
         let m = Self::adjacency_to_matrix(&self.a);
         let p = self.strategy_vector(x);
         let q = self.strategy_vector(y);
         (p.transpose() * m * q)[(0, 0)]
     }
 
-    pub fn compare_strategies(&self, x: &Vec<(A, f64)>, y: &Vec<(A, f64)>)
+    // NOTE: This is numerically unstable
+    pub fn compare_strategies(&self, x: &Strategy<A>, y: &Strategy<A>)
         -> std::cmp::Ordering
     {
         self.confront_strategies(x, y).partial_cmp(&0f64).unwrap()
@@ -360,24 +531,25 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     }
 
     pub fn get_minimax_strategy(&self)
-        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+        -> Result<Strategy<A>, simplex::SimplexError>
     {
         self.get_duel_graph().get_minimax_strategy()
     }
 
     pub fn get_maximin_strategy(&self)
-        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+        -> Result<Strategy<A>, simplex::SimplexError>
     {
         self.get_duel_graph().get_maximin_strategy()
     }
 
-    pub fn get_optimal_strategy(&self) -> Result<Vec<(A, f64)>, ElectionError> {
+    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
         self.get_duel_graph().get_optimal_strategy()
     }
 
-    pub fn get_randomized_winner(&self) -> Result<A, simplex::SimplexError> {
-        let p = self.get_duel_graph().get_minimax_strategy()?;
-        Ok(play_strategy(&p).clone())
+    pub fn get_randomized_winner(&self) -> Result<Option<A>, ElectionError> {
+        Ok(self.get_optimal_strategy()?.play())
+        //let p = self.get_duel_graph().get_minimax_strategy()?;
+        //Ok(play_strategy(&p).clone())
     }
 }
 
@@ -392,23 +564,9 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
     }
 }
 
-pub fn play_strategy<A: Clone + std::fmt::Debug>(p: &Vec<(A, f64)>) -> A {
-    // Sort the array for better numerical accuracy
-    let a = quick_sort(p.clone().to_vec(),
-                       |(_, x), (_, y)| x.partial_cmp(y).unwrap().reverse());
-    let mut x = rand::random::<f64>();
-    for (v, p) in a.into_iter() {
-        x -= p;
-        if x <= 0f64 { return v; }
-    }
-    panic!("Strategy is ill-formed");
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use util::random_strategy;
 
     fn random_graph(names: &Vec<String>) -> DuelGraph<String> {
         let n = rand::random::<usize>() % names.len() + 1;
@@ -427,12 +585,6 @@ mod tests {
             v: v,
             a: a,
         }
-    }
-
-    fn strategy_chooses(p: Vec<(String, f64)>, w: String) -> bool {
-        p.into_iter().all(|(v, x)|
-            if v == w { 1f64 - x < 0.000001f64 } else { x < 0.000001f64 }
-        )
     }
 
     #[test]
@@ -458,10 +610,23 @@ mod tests {
                     v: names.iter().cloned().take(n).collect(),
                     a: m,
                 };
-                let w = g.get_source();
-                assert_ne!(w, None, "No source in graph {}", g);
-                assert!(strategy_chooses(g.get_minimax_strategy().unwrap(),
-                                         w.unwrap().to_string()));
+                let w;
+                match g.get_source() {
+                    Some(x) => w = x,
+                    None => panic!("No source in graph {}", g),
+                }
+                assert!(
+                    g.get_minimax_strategy().unwrap()
+                     .almost_chooses(&w.to_string(), 1e-6),
+                    "Minimax doesn't choose {}", w
+                );
+                assert!(
+                    g.get_maximin_strategy().unwrap()
+                     .almost_chooses(&w.to_string(), 1e-6),
+                    "Minimax doesn't choose {}", w
+                );
+                assert!(g.get_optimal_strategy().unwrap().is_pure(),
+                        "Optimal strategy is mixed");
             }
         }
     }
@@ -486,12 +651,8 @@ mod tests {
         let g = e.get_duel_graph();
         assert_eq!(g.get_source(), None);
         assert_eq!(g.get_sink(), None);
-        println!("Minimax {:?}", g.get_minimax_strategy().unwrap());
-        println!("Maximin {:?}", g.get_maximin_strategy().unwrap());
-        assert!(g.get_minimax_strategy().unwrap()
-                 .into_iter()
-                 .all(|(_, x)| f64::abs(x - 0.333f64) < 0.001f64),
-                "Strategy for Condorcet paradox isn't uniform");
+        assert!(g.get_optimal_strategy().unwrap().is_uniform(&names, 1e-6),
+                "Non uniform strategy for Condorcet paradox");
     }
 
     // Last name commented out for convenience (doubles testing time)
@@ -513,7 +674,7 @@ mod tests {
                 match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
                     (Ok(minimax), Ok(maximin)) => {
                         for _ in 0..100 {
-                            let p = random_strategy(&v);
+                            let p = Strategy::random_mixed(&v);
                             let vminimax = g.confront_strategies(&minimax, &p);
                             let vmaximin = g.confront_strategies(&maximin, &p);
                             if vminimax < -1e-6 && vmaximin < -1e-6 {
@@ -531,7 +692,7 @@ mod tests {
                     (Err(e), Ok(maximin)) => {
                         println!("{}\nMinimax failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = random_strategy(&v);
+                            let p = Strategy::random_mixed(&v);
                             let v = g.confront_strategies(&maximin, &p);
                             if v < -1e-6 {
                                 panic!(
@@ -546,7 +707,7 @@ mod tests {
                     (Ok(minimax), Err(e)) => {
                         println!("{}\nMaximin failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = random_strategy(&v);
+                            let p = Strategy::random_mixed(&v);
                             let v = g.confront_strategies(&minimax, &p);
                             if v < -1e-6 {
                                 panic!(
@@ -587,6 +748,7 @@ mod tests {
         }
     }
 
+    // FIXME: Fails in rare cases due to unsolvable system
     #[test]
     fn optimal_strategy() {
         let names = string_vec!["Alpha", "Bravo", "Charlie",
