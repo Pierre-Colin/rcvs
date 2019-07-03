@@ -437,8 +437,8 @@ mod tests {
 
     #[test]
     fn source_strategy() {
-        let names: Vec<String> = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"]
-            .into_iter().map(|x| x.to_string()).collect();
+        let names = string_vec!["Alpha", "Bravo", "Charlie",
+                                "Delta", "Echo", "Foxtrot"];
         for n in 1..=names.len() {
             for _ in 0..100 {
                 let mut m = Adjacency::from_element(n, n, false);
@@ -474,9 +474,7 @@ mod tests {
             Ballot::<String>::new(),
             Ballot::<String>::new(),
         ];
-        let names = ["Alpha".to_string(),
-                     "Bravo".to_string(),
-                     "Charlie".to_string()];
+        let names = string_vec!["Alpha", "Bravo", "Charlie"];
         for (i, b) in b.iter_mut().enumerate() {
             for j in 0u64..3u64 {
                 assert!(b.insert(names[(i + (j as usize)) % 3].to_owned(),
@@ -499,11 +497,11 @@ mod tests {
     // Last name commented out for convenience (doubles testing time)
     #[test]
     fn tournament() {
-        let names = vec!["Alpha", "Bravo", "Charlie",
-                         "Delta", "Echo" /*, "Foxtrot"*/];
+        let names = string_vec!["Alpha", "Bravo", "Charlie",
+                                "Delta", "Echo"/*, "Foxtrot"*/];
         for n in 1..=names.len() {
             println!("Size {}", n);
-            let v: Vec<String> = names.iter().take(n).map(|x| x.to_string()).collect();
+            let v: Vec<String> = names.iter().take(n).cloned().collect();
             let mut a = Adjacency::from_element(n, n, false);
             (0..(n - 1)).for_each(|i| ((i + 1)..n).for_each(|j| a[(i, j)] = true));
             loop {
@@ -591,9 +589,8 @@ mod tests {
 
     #[test]
     fn optimal_strategy() {
-        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
-                         "Charlie".to_string(), "Delta".to_string(),
-                         "Echo".to_string(), "Foxtrot".to_string()];
+        let names = string_vec!["Alpha", "Bravo", "Charlie",
+                                "Delta", "Echo", "Foxtrot"];
         for _pass in 0..1000 {
             println!("Pass {}", _pass);
             let g = random_graph(&names);
@@ -634,9 +631,8 @@ mod tests {
 
     #[test]
     fn agregate() {
-        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
-                         "Charlie".to_string(), "Delta".to_string(),
-                         "Echo".to_string(), "Foxtrot".to_string()];
+        let names = string_vec!["Alpha", "Bravo", "Charlie",
+                                "Delta", "Echo", "Foxtrot"];
         for _ in 0..50 {
             let mut e = Election::<String>::new();
             let mut sum = Election::<String>::new();
@@ -668,9 +664,8 @@ mod tests {
 
     #[test]
     fn normalize() {
-        let names = vec!["Alpha".to_string(), "Bravo".to_string(),
-                         "Charlie".to_string(), "Delta".to_string(),
-                         "Echo".to_string(), "Foxtrot".to_string()];
+        let names = string_vec!["Alpha", "Bravo", "Charlie",
+                                "Delta", "Echo", "Foxtrot"];
         for _pass in 0..100 {
             let mut e = Election::<String>::new();
             for _ in 0..500 { e.cast(random_ballot(&names)); }

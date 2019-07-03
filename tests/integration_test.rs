@@ -4,7 +4,10 @@ extern crate rand;
 
 use std::cmp::Ordering;
 
-use rcvs::util::{shuffle, random_strategy, strategy_distance};
+use rcvs::{
+    util::{shuffle, random_strategy, strategy_distance},
+    string_vec,
+};
 
 fn ovo_ballot(e: &mut rcvs::Election<String>, name: &str, other: &str) {
     let mut b = rcvs::Ballot::<String>::new();
@@ -177,14 +180,8 @@ fn simulate_election() {
 
 #[test]
 fn condorcet_strategies_optimal() {
-    let names: Vec<String> = [
-        "Alpha",
-        "Bravo",
-        "Charlie",
-        "Delta",
-        "Echo",
-        "Foxtrot",
-    ].iter().map(|x| x.to_string()).collect();
+    let names: Vec<String> = string_vec!["Alpha", "Bravo", "Charlie",
+                                         "Delta", "Echo", "Foxtrot"];
     let num_elections = 200;
     let num_strategies = 500;
     let mut failed = 0u64;
