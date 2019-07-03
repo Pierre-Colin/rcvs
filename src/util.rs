@@ -5,11 +5,6 @@
  * guaranteed to be supported in the future. They should only be used inside
  * the crate and in integration tests.
  */
-use std::{
-    cmp::Eq,
-    hash::Hash,
-};
-
 fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
     where F: Fn(&A, &A) -> std::cmp::Ordering
 {

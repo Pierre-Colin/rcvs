@@ -77,12 +77,11 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     //println!("c = {}", c.transpose());
     //println!("(m, n) = ({}, {})", m, n);
     // Compute reduced costs for all xk not in basis
-    let y: Vector;
-    match a.columns(0, m).transpose().lu().solve(&c.rows(0, m)) {
-        Some(v) => y = v,
-        None => return Err(SimplexError::Unsolvable(a.columns(0, m).transpose(),
-                                                    c.rows(0, m).clone_owned())),
-    }
+    let abt = a.columns(0, m).transpose();
+    let cb = c.rows(0, m);
+    let y = abt.clone_owned().lu().solve(&cb).ok_or_else(||
+        SimplexError::Unsolvable(abt, cb.clone_owned())
+    )?;
     //let y = a.columns(0, m).transpose().lu().solve(&c.rows(0, m)).unwrap();
     //println!("y = {}", y.transpose());
     let u = c.rows(m, n - m) - a.columns(m, n - m).clone().transpose() * y;
@@ -111,42 +110,29 @@ fn feasible_basic_vector(a: &mut Matrix,
     -> Result<(), SimplexError>
 {
     let (m, n) = a.shape();
-    let mut xb;
-    match a.clone().columns(0, m).lu().solve(b) {
-        Some(x) => xb = x,
-        None => return Err(
-            SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                     b.clone())
-        ),
-    };
+    let ab = a.columns(0, m).clone_owned();
+    let mut xb = ab.clone().lu().solve(b).ok_or_else(||
+        SimplexError::Unsolvable(ab, b.clone())
+    )?;
     let mut v = make_auxiliary_objective(&xb, c.len());
     if v.iter().all(|x| *x == 0f64) { return Ok(()); }
     for _pass in 1.. {
         if _pass > 10 * cmp::max(m, n) { return Err(SimplexError::Loop); }
         //println!("Pass {}", _pass);
-        let lu = a.clone().columns(0, m).lu();
-        match lu.solve(b) {
-            Some(x) => xb = x,
-            None => return Err(
-                SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                         b.clone())
-            ),
-        }
+        let ab = a.columns(0, m).clone_owned();
+        let ablu = ab.clone().lu();
+        xb = ablu.solve(b).ok_or_else(||
+            SimplexError::Unsolvable(ab.clone(), b.clone())
+        )?;
         if xb.iter().all(|x| *x >= 0f64) { break; }
         //println!("Feasible basic xb = {}", xb.transpose());
         //let v = make_auxiliary_objective(&xb, c.len());
         //if v.iter().all(|x| *x == 0f64) { break; }
         let k = choose_pivot(a, &v)?.unwrap();
         //println!("k = {}", k);
-        let ablu = a.columns(0, m).clone().lu();
-        let w: Vector;
-        match ablu.solve(&a.column(k)) {
-            Some(x) => w = x,
-            None => return Err(
-                SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                         a.column(k).clone_owned())
-            ),
-        }
+        let w = ablu.solve(&a.column(k)).ok_or_else(||
+            SimplexError::Unsolvable(ab, a.column(k).clone_owned())
+        )?;
         //println!("w = {}", w.transpose());
         //println!("x / w = {}", ratio.transpose());
         if let Some((i, _)) = w.into_iter().zip(xb.iter()).enumerate()
@@ -200,23 +186,15 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
         //println!("k = {}", k);
         // 4. Minimum ratio test
         //println!("[[[ Phase 4 ]]]");
-        let ablu = a.columns(0, m).clone().lu();
-        match ablu.solve(b) {
-            Some(x) => xb = x,
-            None => return Err(
-                SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                         b.clone())
-            ),
-        };
+        let ab = a.columns(0, m).clone_owned();
+        let ablu = ab.clone_owned().lu();
+        xb = ablu.solve(b).ok_or_else(||
+            SimplexError::Unsolvable(ab.clone(), b.clone())
+        )?;
         //println!("New xB value: {}", xb.transpose());
-        let w: Vector;
-        match ablu.solve(&a.column(k)) {
-            Some(x) => w = x,
-            None => return Err(
-                SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                         a.column(k).clone_owned())
-            ),
-        }
+        let w = ablu.solve(&a.column(k)).ok_or_else(||
+            SimplexError::Unsolvable(ab, a.column(k).clone_owned())
+        )?;
         //println!("w = {}", w.transpose());
         //assert!(w.iter().any(|e| *e > 0f64), "Objective function is unbounded");
         if w.iter().all(|e| *e <= 0f64) {
@@ -238,13 +216,10 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
         }
     }
     //println!("Almost finished phase 2 with xb = {}", xb.transpose());
-    match a.columns(0, m).clone().lu().solve(b) {
-        Some(x) => xb = x,
-        None => return Err(
-            SimplexError::Unsolvable(a.columns(0, m).clone_owned(),
-                                     b.clone())
-        ),
-    }
+    let ab = a.columns(0, m).clone_owned();
+    xb = ab.clone().lu().solve(b).ok_or_else(||
+        SimplexError::Unsolvable(ab, b.clone())
+    )?;
     //println!("Almost finished phase 2 with xb = {}", xb.transpose());
     //println!("with indices {:?}", ind);
     let x = Vector::from_iterator(

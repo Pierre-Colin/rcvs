@@ -80,7 +80,6 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
 
 impl <A: Clone + Eq + Hash> Strategy<A> {
     pub fn random_mixed(v: &[A]) -> Self {
-        let n = v.len();
         let mut u: Vec<(A, f64)> =
             v.iter().map(|x| (x.to_owned(), rand::random::<f64>())).collect();
         let sum: f64 = quick_sort(
@@ -126,13 +125,6 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         match self {
             Strategy::Pure(x) => Strategy::Mixed(vec![(x.to_owned(), 1f64)]),
             _ => self.to_owned(),
-        }
-    }
-
-    fn unwrap_pure(&self) -> A {
-        match self {
-            Strategy::Pure(x) => x.to_owned(),
-            Strategy::Mixed(_) => panic!("Strategy is not pure"),
         }
     }
 
