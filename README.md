@@ -20,7 +20,6 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 
 ### To-dos
 * make the simplex algorithm more numerically stable;
-* give error structures to duel graphs and elections;
 * make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
 * optimize resource management if possible (ballots having ownership of everything, etc.).
 

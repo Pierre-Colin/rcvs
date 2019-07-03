@@ -9,6 +9,7 @@ use std::{
     clone::Clone,
     cmp::{Eq, Ordering},
     collections::{HashMap, hash_map, HashSet},
+    error::Error,
     fmt,
     hash::Hash,
 };
@@ -70,6 +71,46 @@ impl <A: Eq> Eq for Arrow<A> {}
 pub struct DuelGraph<A: fmt::Debug> {
     v: Vec<A>,
     a: Adjacency,
+}
+
+#[derive(Debug)]
+pub enum ElectionError {
+    BothFailed(simplex::SimplexError, simplex::SimplexError),
+    ElectionClosed,
+    ElectionOpen,
+}
+
+impl fmt::Display for ElectionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ElectionError::BothFailed(a, b) => {
+                writeln!(f, "Both methods failed:")?;
+                writeln!(f, " * minimax: {}", a)?;
+                writeln!(f, " * maximin: {}", b)
+            },
+            ElectionError::ElectionClosed => write!(f, "Election is closed"),
+            ElectionError::ElectionOpen => write!(f, "Election is open"),
+        }
+    }
+}
+
+impl Error for ElectionError {
+    fn description(&self) -> &str {
+        match self {
+            ElectionError::BothFailed(_, _) =>
+                "Both minimax and maximin strategies failed to be solved",
+            ElectionError::ElectionClosed => "Election is already closed",
+            ElectionError::ElectionOpen => "Election is still open",
+        }
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // in case of multiple cause, no other choice but to return itself
+        match self {
+            ElectionError::BothFailed(_, _) => Some(self),
+            _ => None,
+        }
+    }
 }
 
 impl <A: fmt::Debug> fmt::Display for DuelGraph<A> {
@@ -150,19 +191,17 @@ impl <A: Clone + Eq + fmt::Debug> DuelGraph<A> {
         self.compute_strategy(&m, -1f64, 1f64)
     }
 
-    // TODO: make an error type
-    pub fn get_optimal_strategy(&self) -> Option<Vec<(A, f64)>> {
+    pub fn get_optimal_strategy(&self) -> Result<Vec<(A, f64)>, ElectionError> {
         match (self.get_minimax_strategy(), self.get_maximin_strategy()) {
             (Ok(minimax), Ok(maximin)) => {
-                Some(match self.compare_strategies(&minimax, &maximin) {
+                Ok(match self.compare_strategies(&minimax, &maximin) {
                     Ordering::Less => maximin,
-                    Ordering::Equal => minimax,
-                    Ordering::Greater => minimax,
+                    _ => minimax,
                 })
             },
-            (Err(_), Ok(maximin)) => Some(maximin),
-            (Ok(minimax), Err(_)) => Some(minimax),
-            (Err(_), Err(_)) => None,
+            (Err(_), Ok(maximin)) => Ok(maximin),
+            (Ok(minimax), Err(_)) => Ok(minimax),
+            (Err(e), Err(f)) => Err(ElectionError::BothFailed(e, f)),
         }
     }
 
@@ -320,10 +359,20 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         self.get_duel_graph().get_sink()
     }
 
-    pub fn get_minimax_lottery(&self)
+    pub fn get_minimax_strategy(&self)
         -> Result<Vec<(A, f64)>, simplex::SimplexError>
     {
         self.get_duel_graph().get_minimax_strategy()
+    }
+
+    pub fn get_maximin_strategy(&self)
+        -> Result<Vec<(A, f64)>, simplex::SimplexError>
+    {
+        self.get_duel_graph().get_maximin_strategy()
+    }
+
+    pub fn get_optimal_strategy(&self) -> Result<Vec<(A, f64)>, ElectionError> {
+        self.get_duel_graph().get_optimal_strategy()
     }
 
     pub fn get_randomized_winner(&self) -> Result<A, simplex::SimplexError> {

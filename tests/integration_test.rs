@@ -118,7 +118,7 @@ fn condorcet_winner() {
                 assert!(e.cast(b), "Election was closed");
             }
             assert_eq!(e.get_condorcet_winner(), Some(v[s].clone()));
-            assert!(strategy_chooses(e.get_minimax_lottery().unwrap(), &v[s]));
+            assert!(strategy_chooses(e.get_minimax_strategy().unwrap(), &v[s]));
         }
     }
 }
