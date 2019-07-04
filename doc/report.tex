@@ -614,208 +614,309 @@ notebook\cite{oscar6echo}. Both the minimax and maximin strategies are covered
 here, although they are extremely similar.
 
 \subsubsection{Minimax strategy}
-Suppose player B wants to choose a strategy $P\;\in\;;\mathbf P$ that will
+Suppose player B wants to choose a strategy $\mathbf p\;\in\;\mathbf P$ that will
 maximize its payoff, i.e. minimize A's, no matter what mixed strategy player A
-plays. Since mixed strategies are barycenters of pure strategies, it is
-possible to assume player A plays the optimal pure strategy. Noting $M_i$ the
-$i$th row of $M$, A's expected payoff is then
-\[v\;=\;\min_{P\;\in\;\mathbf P}\,\max_{i\;\in\;I}\,M_i\,P.\]
+plays. Since mixed strategies are barycenters of pure strategies, $\mathbf p$'s
+worst payoff will occur at some pure strategy. Noting $R_i$ the $i$th row of
+$M$, A's expected payoff is then
+\[v\;=\;\min_{\mathbf p\;\in\;\mathbf P}\,\max_{i\;\in\;I}\,R_i\,\mathbf p.\]
 Since the maximum is equivalent to the least upper bound,
 \[
-	v\;=\;\min_{P\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)}\,\min_{a\;\in\;\mathbf R}\,a
+	v\;=\;\min_{\mathbf p\;\in\;\mathbf P}\,
+		\min_{\beta\;\in\;\mathbf R}\,\beta
 		\qquad\text{subject to}\qquad
-		\begin{cases}
-		\forall i\;\in\;I,\;p_i\;\geqslant\;0 \\
-		\sum_{i\;\in\;I}p_i\;=\;1 \\
-		\forall i\;\in\;I,\;M_i\,P\;\leqslant\;a
-		\end{cases}.
+		\forall i\;\in\;I,\;R_i\,\mathbf p\;\leqslant\;\beta.
 \]
 Merging both minima,
 \begin{equation}
-	v\;=\;\min_{\substack{P\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)\\a\;\in\;\mathbf R}}\,a
+	v\;=\;\min_{\substack{\mathbf p\;\in\;\mathbf P\\\beta\;\in\;\mathbf R}}\,\beta
 		\qquad\text{subject to}\qquad
-		\begin{cases}
-		\forall i\;\in\;I,\;p_i\;\geqslant\;0 \\
-		\sum_{i\;\in\;I}p_i\;=\;1 \\
-		\forall i\;\in\;I,\;M_i\,P\;\leqslant\;a
-		\end{cases}.
+		\forall i\;\in\;I,\;R_i\,\mathbf p\;\leqslant\;\beta.
 	\label{eqn:minimax_1}
 \end{equation}
-For all $\left(i,\;j\right)\;\in\;I^2$, define $m'_{i,\;j}\;=\;m_{i,\;j}\,+\,2$
-so that the matrix $M'$ has only positive coordinates. Then for all $i\;\in\;I$,
+Two things can be done from here. First, for all $\left(i,\;j\right)\;\in\;I^2$,
+define $a_{i,\;j}\;=\;m_{i,\;j}\,+\,2$ so that the matrix $A$ has only positive
+coordinates. Then for all $i\;\in\;I$, noting $R'_i$ the $i$th column of $A$,
 \begin{align*}
-	M'_i\,P\;&=\;\sum_{j\;\in\;I}m'_{i,\;j}\,p_j \\
+	R'_i\,\mathbf p\;&=\;\sum_{j\;\in\;I}a_{i,\;j}\,p_j \\
 		&=\;\sum_{j\;\in\;I}\left(m_{i,\;j}\,+\,2\right)\,p_j \\
 		&=\;\sum_{j\;\in\;I}\left(m_{i,\;j}\,p_j\,+\,2\,p_j\right) \\
 		&=\;\sum_{j\;\in\;I}m_{i,\;j}\,p_j\,+\,2\,\sum_{j\;\in\;I}p_j \\
 		&=\;\sum_{j\;\in\;I}m_{i,\;j}\,p_j\,+\,2 \\
-		&=\;M_i\,P\,+\,2.
+		&=\;R_i\,\mathbf p\,+\,2.
 \end{align*}
-This guarantees switching from $M$ to $M'$ will only shift $a$ by 2, meaning,
-for $a'\;=\;a\,+\,2$, equation \ref{eqn:minimax_1} becomes
+This guarantees switching from $M$ to $A$ will only shift $a$ by 2, but this
+minimum will still occur at the same $\mathbf p$. Let $\beta'\;=\;\beta\,+\,2$.
+Equation \ref{eqn:minimax_1} becomes
 \begin{equation}
-	v'\;=\;\min_{\substack{P\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)\\a'\;\in\;\mathbf R}}\,a'
+	v'\;=\;\min_{\substack{P\;\in\;\mathbf P\\\beta'\;\in\;\mathbf R}}\,\beta'
 		\qquad\text{subject to}\qquad
-		\begin{cases}
-		\forall i\;\in\;I,\;p_i\;\geqslant\;0 \\
-		\sum_{i\;\in\;I}p_i\;=\;1 \\
-		\forall i\;\in\;I,\;M'_i\,P\;\leqslant\;a'
-		\end{cases}.
+		\forall i\;\in\;I,\;R'_i\,P\;\leqslant\;\beta'
 	\label{eqn:minimax_2}
 \end{equation}
-Since $\forall\left(i,\;j\right)\;\in\;I^2,\;m'_{i,\;j}\;>\;0$, it follows
-$\forall i\;\in\;I,\;M'_i\,P\;>\;0$ then $a'\;>\;0$. Define
-$X\;=\;\frac1{a'}\,P$ and $\mathbf X\;=\;\frac1{a'}\,\mathbf P$. Equation
-\ref{eqn:minimax_2} becomes
+where $v'\;=\;v\,+\,2$. The second thing to do is to define the following
+partial order over $\mathscr M_{n,\;1}\left(\mathbf R\right)$:
 \[
-	v'\;=\;\min_{\substack{X\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)\\a'\;\in\;\mathbf R}}\,a'
-		\qquad\text{subject to}\qquad
-		\begin{cases}
-		\forall i\;\in\;I,\;x_i\;\geqslant\;0 \\
-		\sum_{i\;\in\;I}x_i\;=\;\frac1{a'} \\
-		\forall i\;\in\;I,\;M'_i\,X\;\leqslant\;1
-		\end{cases}.
+	\forall\left(\mathbf x,\;\mathbf y\right)
+		\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)^2,\;\left(
+		\mathbf x\;\leqslant\;\mathbf y
+		\qquad\Leftrightarrow\qquad
+		\forall i\;\in\;I,\;x_i\;\leqslant\;y_i
+	\right).
 \]
-Since $\sum_{i\;\in\;I}x_i\;=\;\frac1{a'}$, this is equivalent to
+This notation allows rewriting equation \ref{eqn:minimax_2} into problem
+\ref{eqn:minimax_3}, defining the vectors
+$\mathbf 1\;=\;\left(1\right)_{i\;\in\;I}$ and
+$\mathbf 0\;=\;\left(0\right)_{i\;\in\;I}$.
 \begin{equation}
-	v'\;=\;\max_{X\;\in\;\mathscr M_{n,\;1}\left(\mathbf R\right)}\,\sum_{j\;\in\;I}x_j
-		\qquad\text{subject to}\qquad
-		\begin{cases}
-		\forall i\;\in\;I,\;x_i\;\geqslant\;0 \\
-		\forall i\;\in\;I,\;M'_i\,X\;\leqslant\;1
-		\end{cases}.
-	\label{eqn:simplex_problem_minimax}
+	\begin{array}{lll}
+		\text{Minimize} & & \beta' \\
+		\text{subject to} & &
+			A\,\mathbf p\;\leqslant\;\beta'\,\mathbf 1 \\
+		\text{and} & & \mathbf p\;\geqslant\;\mathbf 0
+	\end{array}
+	\label{eqn:minimax_3}
 \end{equation}
-This means that if $X$ is known, $P$ can be calculated with $P\;=\;v'\,X$. Of
-course, this work is useful only if $X$ is computable, which is nontrivial.
+Since $\forall\left(i,\;j\right)\;\in\;I^2,\;a_{i,\;j}\;>\;0$, it follows that
+$\forall i\;\in\;I,\;R'_i\,\mathbf p\;>\;0$ then $a'\;>\;0$. Define
+$\mathbf x\;=\;\frac1{\beta'}\,\mathbf p$. Problem \ref{eqn:minimax_3} becomes
+\[
+	\begin{array}{lll}
+		\text{Minimize} & & \beta' \\
+		\text{subject to} & & A\,\mathbf x\;\leqslant\;\mathbf 1 \\
+		\text{and} & & \mathbf x\;\geqslant\;\mathbf 0
+	\end{array}
+\]
+Since $\mathbf 1^\top\,\mathbf x\;=\;\sum_{i\;\in\;I}x_i\;=\;\frac1{\beta'}$,
+this is equivalent to problem \ref{eqn:lp_minimax}.
+\begin{equation}
+	\begin{array}{lll}
+		\text{Maximize} & & \mathbf 1^\top\,\mathbf x \\
+		\text{subject to} & & A\,\mathbf x\;\leqslant\;\,\mathbf 1 \\
+		\text{and} & & \mathbf x\;\geqslant\;\mathbf 0
+	\end{array}
+	\label{eqn:lp_minimax}
+\end{equation}
+If $\mathbf x$ is known, $\mathbf x$ can be calculated with
+$\mathbf p\;=\;\frac1{\left\|\mathbf x\right\|_1}\,\mathbf x$ where
+$\left\|\cdot\right\|_1$ refers to the $L^1$-norm. Of course, this work is
+useful only if $\mathbf x$ is computable, which is nontrivial.
 
 \subsubsection{Maximin strategy}
-Suppose player A wants to choose a strategy $P\;\in\;\mathbf P$ that will
-maximize its payoff no matter what mixed strategy player B plays. Since mixed
-strategies are barycenters of pure strategies, it is possible to assume player
-B plays the optimal pure strategy. Noting $M_i$ the $i$th column of $M$, A's
-expected payoff is then
-\[v\;=\;\max_{P\;\in\;\mathbf P}\,\min_{j\;\in\;I}\,P^\top\,M_j.\]
+For the maximin strategy, things are almost identical. Suppose player A wants
+to choose a strategy $\mathbf p\;\in\;\mathbf P$ that will maximize its payoff
+no matter what mixed strategy player B plays. Since mixed strategies are
+barycenters of pure strategies, $\mathbf p$'s worst payoff occurs for some pure
+strategy. Noting $C_i$ the $i$th column of $M$, A's expected payoff is then
+\[
+	v\;=\;\max_{\mathbf p\;\in\;\mathbf P}\,
+		\min_{j\;\in\;I}\,\mathbf p^\top\,C_j.
+\]
 Since the minimum is equivalent to the greatest lower bound,
 \[
-	v\;=\;\max_{P\;\in\;\mathbf P}\,\max_{a\;\in\;\mathbf R}\,a
+	v\;=\;\max_{\mathbf p\;\in\;\mathbf P}\,
+		\max_{\beta\;\in\;\mathbf R}\,\beta
 		\qquad\text{subject to}\qquad
-		\forall j\;\in\;I,\;P^\top\,M_j\;\geqslant\;a.
+		\forall j\;\in\;I,\;\mathbf p^\top\,C_j\;\geqslant\;\beta.
 \]
-Merging both maxima,
+Merging both maxima gives equation \ref{eqn:maximin_1}.
 \begin{equation}
-	v\;=\;\max_{\substack{P\;\in\;\mathbf P\\a\;\in\;\mathbf R}}\,a
+	v\;=\;\max_{\substack{\mathbf p\;\in\;\mathbf P\\\beta\;\in\;\mathbf R}}\,\beta
 		\qquad\text{subject to}\qquad
-		\forall j\;\in\;I,\;P^\top\,M_j\;\geqslant\;a.
+		\forall j\;\in\;I,\;\mathbf p^\top\,C_j\;\geqslant\;\beta.
 	\label{eqn:maximin_1}
 \end{equation}
-For all $\left(i,\;j\right)\;\in\;I^2$, define $m'_{i,\;j}\;=\;m_{i,\;j}\,+\,2$
-so that the matrix $M'$ has only positive coordinates. Then for all $j\;\in\;I$,
-\begin{align*}
-	P^\top\,M'_j\;&=\;\sum_{i\;\in\;I}m'_{i,\;j}\,p_i \\
-		&=\;\sum_{i\;\in\;I}\left(m_{i,\;j}\,+\,2\right)\,p_i \\
-		&=\;\sum_{i\;\in\;I}\left(m_{i,\;j}\,p_i\,+\,2\,p_i\right) \\
-		&=\;\sum_{i\;\in\;I}m_{i,\;j}\,p_i\,+\,2\,\sum_{i\;\in\;I}p_i \\
-		&=\;\sum_{i\;\in\;I}m_{i,\;j}\,p_i\,+\,2 \\
-		&=\;P^\top\,M_j\,+\,2.
-\end{align*}
-This guarantees switching from $M$ to $M'$ will only shift $a$ by 2, meaning,
-for $a'\;=\;a\,+\,2$, equation \ref{eqn:maximin_1} becomes
+Take the matrix $A$ as in the minimax strategy, and for $j\;\in\;I$, note $C'_j$
+its $j$th column. Then, in a similar fashion,
+$\mathbf p^\top\,C'_j\;=\;\mathbf p^\top\,C_j\,+\,2$ meaning that the maximum
+will occur for the same $\mathbf p$ with $\beta'\;=\;\beta\,+\,2$. Taking the
+same coordinatewise partial order over
+$\mathscr M_{n,\;1}\left(\mathbf R\right)$, equation \ref{eqn:maximin_1} becomes
+problem \ref{eqn:maximin_2}.
 \begin{equation}
-	v\;=\;\max_{\substack{P\;\in\;\mathbf P\\a'\;\in\;\mathbf R}}\,a'
-		\qquad\text{subject to}\qquad
-		\forall j\;\in\;I,\;P^\top\,M'_j\;\geqslant\;a'.
+	\begin{array}{lll}
+		\text{Maximize} & & \beta' \\
+		\text{subject to} & &
+			A^\top\,\mathbf p\;\geqslant\;\beta'\,\mathbf 1 \\
+		\text{and} & & \mathbf p\;\geqslant\;\mathbf 0
+	\end{array}
 	\label{eqn:maximin_2}
 \end{equation}
-Since $\forall\left(i,\;j\right)\;\in\;I^2,\;m'_{i,\;j}\;>\;0$, it follows
-$\forall j\;\in\;I,\;P^\top\,M'_j\;>\;0$ then $a'\;>\;0$. Define
-$X\;=\;\frac1{a'}\,P$ and $\mathbf X\;=\;\frac1{a'}\,\mathbf P$. Equation
-\ref{eqn:maximin_2} becomes
-\[
-	v\;=\;\max_{\substack{X\;\in\;\mathbf X\\a'\;\in\;\mathbf R}}\,a'
-		\qquad\text{subject to}\qquad
-		\forall j\;\in\;I,\;X^\top\,M'_j\;\geqslant\;1.
-\]
-Since $\sum_{i\;\in\;I}x_i\;=\;\frac1{a'}$, this is equivalent to
+Note that this time, $\mathbf p^\top\,A$ was transposed into $A^\top\,\mathbf p$
+to keep a column structure. It should be kept in mind that contrarily to $M$,
+$A$ is not skew-symmetric.
+
+Since $\forall\left(i,\;j\right)\;\in\;I^2,\;a_{i,\;j}\;>\;0$, it follows that
+$\forall j\;\in\;I,\;\mathbf p^\top\,C'_j\;>\;0$ then $\beta'\;>\;0$. Define
+$\mathbf x\;=\;\frac1{\beta'}\,\mathbf p$. Problem \ref{eqn:maximin_2} becomes
+problem \ref{eqn:lp_maximin}.
 \begin{equation}
-	v\;=\;\min_{X\;\in\;\mathbf X}\,\sum_{i\;\in\;I}x_i
-		\qquad\text{subject to}\qquad
-		\forall j\;\in\;I,\;X^\top\,M'_j\;\geqslant\;1.
-	\label{eqn:simplex_problem_maximin}
+	\begin{array}{lll}
+		\text{Minimize} & & \mathbf 1^\top\,\mathbf x \\
+		\text{subject to} & &
+			A^\top\,\mathbf x\;\geqslant\;\,\mathbf 1 \\
+		\text{and} & & \mathbf x\;\geqslant\;\mathbf 0
+	\end{array}
+	\label{eqn:lp_maximin}
 \end{equation}
-This means that if $X$ is known, $P$ can be calculated with $P\;=\;v\,X$. Of
-course, this work is useful only if $X$ is computable, which is nontrivial.
+If $\mathbf x$ is known, $\mathbf p$ can be calculated with
+$\mathbf p\;=\;\frac1{\left\|\mathbf x\right\|_1}\,\mathbf x$. Of course, this
+work is useful only if $X$ is computable, which is nontrivial.
 
 \section{Computation}
-Equations \ref{eqn:simplex_problem_minimax} and
-\ref{eqn:simplex_problem_maximin} give the problem to solve in order to
-compute the maximal mixed strategy, and the minimax theorem guarantees both are
-equal. That is, in theory, for floating-point approximations will prevent us
-from having perfect results. Looking carefully at the problem, it appears to be
-about minimizing\footnote{Equation \ref{eqn:simplex_problem_minimax} requires
-switching the sign.} a linear form over a part in the vector space that only
-has nonnegative coordinates, is bounded and is cut by linear constraints,
-making it a convex polytope. Fortunately, there exists numerical methods to
-solve this kind of problems, namely the simplex algorithm and the ellipsoid
-method. The former will be used here. This section will follow \emph{Numerical
-Recipes}\cite{num_rec} in the special cases that apply here. Equation
-\ref{eqn:simplex_problem_minimax} will be used because slack variables are more
-easy to treat in this version. For better accuracy, both versions can be used
-and their results can be compared for error checking and maybe correction too.
+The previous work was not for nothing: problems
+\ref{eqn:lp_minimax} and \ref{eqn:lp_maximin} are of
+a specific class of problems called \emph{linear programs}. They can be brought
+to canonical form as shown on figure \ref{fig:lp_standard}. These two programs
+also turn out to be \emph{symmetric duals} of each others, but this property
+will not be used here.
+\begin{figure}[ht!]
+	\centering
+	\begin{tabular}{|lll|}
+		\hline
+		\multicolumn{3}{|c|}{Minimax} \\
+		\hline
+		Minimize & & $-\mathbf 1^\top\,\mathbf x$ \\
+		subject to & & $A\,\mathbf x\;\leqslant\;\mathbf 1$ \\
+		and & & $\mathbf x\;\geqslant\;\mathbf 0$ \\
+		\hline
+	\end{tabular}
+	\begin{tabular}{|lll|}
+		\hline
+		\multicolumn{3}{|c|}{Maximin} \\
+		\hline
+		Minimize & & $\mathbf 1^\top\,\mathbf x$ \\
+		subject to & & $-A^\top\,\mathbf x\;\leqslant\;-\mathbf 1$ \\
+		and & & $\mathbf x\;\geqslant\;\mathbf 0$ \\
+		\hline
+	\end{tabular}
+	\caption{Linear programs in standard form}
+	\label{fig:lp_standard}
+\end{figure}
 
-The first interesting thing to notice is that there are $n\;=\;\left|I\right|$
-coordinates and $m\;=\;n$ constraints. This guarantees at least $n$ coordinates
-of any basic feasible vector are nonzero.
+Geometrically speaking, linear programming consists of minimizing a linear form
+over a closed convex polytope whose all vertices have nonnegative coordinates.
+The naive approach to it would be to use gradient descent. After all, the
+gradient of a linear form is constant ($-\mathbf 1$ and $\mathbf 1$ in our
+case). Unfortunately, one theorem makes this dream vanish.
+\begin{thm}
+	\label{thm:minimum_vertex}
+	Let $\left(\mathbf V,\; +,\; \cdot\right)$ be a vector space of
+	arbitrary dimension over $\mathbf R$, $u\;\in\;\mathbf V^*$ and $P$ a
+	closed convex polytope in $\mathbf V$.
 
-\subsection{Standard form}
-To put the problem in standard form, the constrains need to be changed a bit.
-Taking equation \ref{eqn:simplex_problem_minimax} and switching the sign, for
-all $j\;\in\;I$, introduct slack variables $s_j$. The problem becomes:
-\begin{equation}
-	-v\;=\;\min_{X\;\in\;\mathbf X}\,-\sum_{j\;\in\;I}x_j
-		\qquad\text{subject to}\qquad
+	The function $u\upharpoonright_P$ has a minimum value reached at one
+	of $P$'s vertices.
+\end{thm}
+\begin{proof}
+	Note $V$ the set of $P$'s vertices. Since $P$ is a convex polytope, it
+	is the convex hull of $V$. The set $V$ being finite, let
+	$m\;=\;\min_V\,u$. Then, for all $\mathbf x\;\in\;P$, there exists
+	nonnegative coefficients $\left(\gamma_\mathbf v\right)_{\mathbf
+	v\;\in\;V}$ such that
+	\[
 		\begin{cases}
-		\forall i\;\in\;I,\;M'_i\,X\,+\,s_i\;=\;1\\
-		\forall i\;\in\;I,\;s_i\;\leqslant\;0
+			\sum_{\mathbf v\;\in\;V}\gamma_\mathbf v\;=\;1 \\
+			\mathbf x\;=\;\sum_{\mathbf v\;\in\;V}
+				\gamma_\mathbf v\,\mathbf v
 		\end{cases}.
-	\label{eqn:simplex_slack_minimax}
-\end{equation}
-Essentially, the dimension of the problem has been doubled, but all the
-constraints are now equalities. A feasible basic vector can be trivially
-computed by setting:
-\[ \forall j\;\in\;I,\;\begin{cases} x_j\;=\;0 \\ s_j\;=\;1 \end{cases}. \]
-Define $I'\;=\;\left\{1,\;\ldots,\;2\,n\right\}$ and $\mathbf X'$ as the set of
-vectors $\left(x_j\right)_{j\;\in\;I'}$ such that \[
-	\forall j\;\in\;I',\;x_j\;\geqslant\;0
-		\qquad\text{and}\qquad \sum_{j\;=\;0}^nx_j\;=\;\frac1{a'}.
-\]
-It is the same set as $\mathbf X$ but with a doubled dimension. The constraints
-can be reformulated with a matrix $C$ defined as: \[
-	C\;=\;\left[\begin{array}{c|c}M'^\top & I_n\end{array}\right]
-	 \;=\;\begin{pmatrix}
-		m'_{1,\;1} & \cdots & m'_{n,\;1} & 1 & & 0 \\
-		\vdots & \ddots & \vdots & & \ddots & \\
-		m'_{1,\;n} & \cdots & m'_{n,\;n} & 0 & & 1
-	\end{pmatrix}.
-\]
-This way, equation \ref{eqn:simplex_slack_minimax} becomes:
+	\]
+	Then,
+	\begin{align*}
+		u\left(\mathbf x\right)\;&=\;u\left(\sum_{\mathbf v\;\in\;V}
+				\gamma_\mathbf v\,\mathbf v\right) \\
+			&=\;\sum_{\mathbf v\;\in\;V}
+				\gamma_\mathbf v\,u\left(\mathbf v\right) \\
+			&\geqslant\;\sum_{\mathbf v\;\in\;V}\gamma_\mathbf v\,m \\
+			&=\;m\,\sum_{\mathbf v\;\in\;V}\gamma_\mathbf v \\
+			&=\;m.
+	\end{align*}
+\end{proof}
+Beside the fact that theorem \ref{thm:minimum_vertex} has a very general scope
+(it works even in infinite dimension and without an inner product), it shows
+that the minimum point is not interior to the domain where gradient descent
+usually works. Therefore, linear programming requires its very own toolbox.
+
+The two most famous algorithms for linear programming are the \emph{simplex
+algorithm} and the \emph{ellipsoid algorithm}. Although the latter has a better
+worst-case time complexity, the linear programs solved here have moderate size.
+The former method will therefore be used.
+
+\subsection{The simplex algorithm}
+Consider the following linear program. Ignore the "N" subscripts for now.
+\begin{center}
+	\begin{tabular}{|lll|}
+		\hline
+		Minimize & & $\mathbf {c_{\rm N}}^\top\,\mathbf x_{\rm N}$ \\
+		subject to & & $A_{\rm N}\,\mathbf x_{\rm N}\;\leqslant\;\mathbf b$ \\
+		and & & $\mathbf x_{\rm N}\;\geqslant\;\mathbf 0$ \\
+		\hline
+	\end{tabular}
+\end{center}
+The simplex algorithm requires transforming the problem by making the first
+constraint an equality. The solution is to introduce \emph{slack variables}. A
+constraint of the type $R_i\,\mathbf x\;\leqslant\;b_i$ is then turned into a
+constraint of the form $R_i\,\mathbf x\,+\,s_i\;=\;b_i$. Usually, a slack
+variable in a constraint of type $\geqslant$ is called a \emph{surplus
+variable}, but they don't behave any different. Note $m\,\times\,n$ the shape
+of $A_{\rm N}$. The most important thing to keep in mind is that $m$ is the
+\emph{number of constraints} and $n$ is the \emph{number of variables}. The new
+matrices are then defined in equation \ref{eqn:simplex_form}.
 \begin{equation}
-	v\;=\;\min_{X\;\in\;\mathbf X'}\,\sum_{i\;\in\;I}x_i
-		\qquad\text{subject to}\qquad
-		C\,X\;=\;1_n.
-	\label{eqn:simplex_standard_form}
+	\begin{array}{|lcl|}
+		\hline
+		A_{\rm B}\;=\;I_m & \longrightarrow &
+			A\;=\;\left(\begin{array}{c|c}
+				A_{\rm B} & A_{\rm N}
+			\end{array}\right)\;\in\;
+				\mathscr M_{m,\;m\,+\,n}
+					\left(\mathbf R\right) \\
+		\mathbf c_{\rm B}\;=\;\mathbf 0 & \longrightarrow &
+			\mathbf c\;=\;\left(\begin{array}{c}
+				\mathbf c_{\rm B} \\
+				\hline
+				\mathbf c_{\rm N}
+			\end{array}\right)\;\in\;
+				\mathscr M_{m\,+\,n,\;1}
+					\left(\mathbf R\right) \\
+		\mathbf x_{\rm B}\;\in\;\mathscr M_{m,\;1}\left(\mathbf R\right)
+			& \longrightarrow &
+			\mathbf x\;=\;\left(\begin{array}{c}
+				\mathbf x_{\rm B} \\
+				\hline
+				\mathbf x_{\rm N}
+			\end{array}\right)\;\in\;
+				\mathscr M_{m\,+\,n,\;1}
+					\left(\mathbf R\right) \\
+		\hline
+	\end{array}
+	\label{eqn:simplex_form}
 \end{equation}
-Now that the problem is in standard form, the algorithm can be used.
+The value of $\mathbf x_{\rm B}$ is unspecified for now because it is part of
+what is to be computed. The problem then becomes
+\begin{center}
+	\begin{tabular}{|lll|}
+		\hline
+		Minimize & & $\mathbf c^\top\,\mathbf x$ \\
+		subject to & & $A\,\mathbf x\;=\;\mathbf b$ \\
+		and & & $\mathbf x\;\geqslant\;\mathbf 0$ \\
+		\hline
+	\end{tabular}
+\end{center}
+where $A$ is not necessarily square, meaning $A\,\mathbf x\;=\;\mathbf b$ has
+potentially infinitely many solutions.
 
-% TODO program it first, too hard to describe the theory
+The set of $\mathbf x$ such that $A\,\mathbf x\;=\;\mathbf b$ and $\mathbf
+x\;\geqslant\;\mathbf 0$ is called the \emph{feasible region}, and its elements
+are \emph{feasible vectors}. A component $\mathbf x_{\rm B}$ of a feasible
+vector is called a \emph{feasible basic vector} or feasible basis. All
+subscripts "B" mean \emph{basic} while subscripts "N" mean \emph{nonbasic}. The
+term \emph{objective function} refers to $\mathbf c$.
 
-%\subsection{Increasing variables}
-%Suppose $C\,X\;=\;1_n$. Choose a nonbasic variable $x_k$ ($k\;\leqslant\;n$) to
-%increase from 0. Destructuring
-%$X\;=\;\left[\begin{array}X_\mathrm N \\ \hline \\ X_\mathrm B\right]$, the
-%invariant becomes $X'_\mathrm B\,+\,x_k\,C_k\;=\;1_n$ where $C_k$ denotes the
-%$k$th column of $C$. This can be rearranged into
-%$X'_\mathrm B\;=\;1_n\,-\,x_k\,C_k$.
+The idea is as follows: the vector $\mathbf x_{\rm B}$ will start at one of the
+vertices of the convex polytope, and at each iteration, it will follow an edge
+to the neighboring vertex which best reduces the objective function until no
+neighboring vertex is better.
 
 \begin{thebibliography}{9}
 \bibitem{oscar6echo}
