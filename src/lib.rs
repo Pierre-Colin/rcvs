@@ -555,7 +555,7 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
 mod tests {
     use super::*;
 
-    fn random_graph(names: &Vec<String>) -> DuelGraph<String> {
+    fn random_graph(names: &[String]) -> DuelGraph<String> {
         let n = rand::random::<usize>() % names.len() + 1;
         let v = names.iter().take(n).cloned().collect();
         let mut a = Adjacency::from_element(n, n, false);
@@ -767,7 +767,7 @@ mod tests {
         }
     }
 
-    fn random_ballot(v: &Vec<String>) -> Ballot<String> {
+    fn random_ballot(v: &[String]) -> Ballot<String> {
         let mut b = Ballot::<String>::new();
         for x in v.iter() {
             let s = rand::random::<u64>();

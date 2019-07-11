@@ -106,7 +106,7 @@ fn make_auxiliary_objective(xb: &Vector, l: usize) -> Vector {
 fn feasible_basic_vector(a: &mut Matrix,
                          b: &Vector,
                          c: &mut Vector,
-                         ind: &mut Vec<Option<usize>>)
+                         ind: &mut [Option<usize>])
     -> Result<(), SimplexError>
 {
     let (m, n) = a.shape();

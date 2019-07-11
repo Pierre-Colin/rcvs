@@ -5,7 +5,7 @@
  * guaranteed to be supported in the future. They should only be used inside
  * the crate and in integration tests.
  */
-fn insertion_sort<A, F>(a: &mut Vec<A>, b: usize, e: usize, compare: &F)
+fn insertion_sort<A, F>(a: &mut [A], b: usize, e: usize, compare: &F)
     where F: Fn(&A, &A) -> std::cmp::Ordering
 {
     for i in (b + 1)..e {
