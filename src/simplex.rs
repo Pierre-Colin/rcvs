@@ -1,7 +1,6 @@
 extern crate nalgebra as na;
 
 use std::{
-    cmp,
     error::Error,
     fmt,
     iter::repeat,
@@ -72,7 +71,9 @@ fn make_indices(m: usize, n: usize) -> Vec<Option<usize>> {
 }
 
 fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
-    let (m, n) = a.shape();
+    // A has shape (m, m + n)
+    let (m, mn) = a.shape();
+    let n = mn - m;
     //println!("a = {}", a);
     //println!("c = {}", c.transpose());
     //println!("(m, n) = ({}, {})", m, n);
@@ -84,7 +85,7 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     )?;
     //let y = a.columns(0, m).transpose().lu().solve(&c.rows(0, m)).unwrap();
     //println!("y = {}", y.transpose());
-    let u = c.rows(m, n - m) - a.columns(m, n - m).clone().transpose() * y;
+    let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
     if u.iter().all(|x| *x >= 0f64) {
         Ok(None)
@@ -109,7 +110,7 @@ fn feasible_basic_vector(a: &mut Matrix,
                          ind: &mut [Option<usize>])
     -> Result<(), SimplexError>
 {
-    let (m, n) = a.shape();
+    let (m, mn) = a.shape();
     let ab = a.columns(0, m).clone_owned();
     let mut xb = ab.clone().lu().solve(b).ok_or_else(||
         SimplexError::Unsolvable(ab, b.clone())
@@ -117,7 +118,7 @@ fn feasible_basic_vector(a: &mut Matrix,
     let mut v = make_auxiliary_objective(&xb, c.len());
     if v.iter().all(|x| *x == 0f64) { return Ok(()); }
     for _pass in 1.. {
-        if _pass > 10 * cmp::max(m, n) { return Err(SimplexError::Loop); }
+        if _pass > 10 * mn { return Err(SimplexError::Loop); }
         //println!("Pass {}", _pass);
         let ab = a.columns(0, m).clone_owned();
         let ablu = ab.clone().lu();
@@ -167,7 +168,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
     //println!("b = {}", b.transpose());
     for _pass in 1.. {
-        if _pass > 10 * cmp::max(m, n) { return Err(SimplexError::Loop); }
+        if _pass > 10 * (m + n) { return Err(SimplexError::Loop); }
         //println!("========== Pass {} ==========", _pass);
         //println!("A = {}", a);
         //println!("c = {}", c.transpose());
