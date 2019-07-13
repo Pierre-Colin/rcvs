@@ -16,6 +16,7 @@ pub enum SimplexError {
     Unbounded,
     Loop,
     Unfeasible,
+    NanVector(Vector),
     Whatever,
 }
 
@@ -28,6 +29,8 @@ impl fmt::Display for SimplexError {
             SimplexError::Unbounded => writeln!(f, "Objective function is unbounded"),
             SimplexError::Loop => writeln!(f, "Iteration limit reached"),
             SimplexError::Unfeasible => writeln!(f, "Program is unfeasible"),
+            SimplexError::NanVector(v) =>
+                writeln!(f, "Vector contains NaN: {}", v.transpose()),
             SimplexError::Whatever => writeln!(f, "Unknown error"),
         }
     }
@@ -43,6 +46,7 @@ impl Error for SimplexError {
                 "Objective function is unbounded on given domain",
             SimplexError::Loop => "Iteration limit reached",
             SimplexError::Unfeasible => "Feasible region is empty",
+            SimplexError::NanVector(_) => "Vector contains NaN",
             SimplexError::Whatever => "Unknown error",
         }
     }
@@ -90,6 +94,7 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     //println!("y = {}", y.transpose());
     let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
+    if u.iter().any(|x| x.is_nan()) { return Err(SimplexError::NanVector(u)); }
     match u.into_iter().enumerate()
                        .min_by(|(_, x), (_, y)| x.partial_cmp(y).unwrap())
     {
