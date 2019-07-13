@@ -15,6 +15,7 @@ pub enum SimplexError {
     Filtering,
     Unbounded,
     Loop,
+    Unfeasible,
     Whatever,
 }
 
@@ -26,6 +27,7 @@ impl fmt::Display for SimplexError {
             SimplexError::Filtering => writeln!(f, "Iterator filtering failed"),
             SimplexError::Unbounded => writeln!(f, "Objective function is unbounded"),
             SimplexError::Loop => writeln!(f, "Iteration limit reached"),
+            SimplexError::Unfeasible => writeln!(f, "Program is unfeasible"),
             SimplexError::Whatever => writeln!(f, "Unknown error"),
         }
     }
@@ -40,6 +42,7 @@ impl Error for SimplexError {
             SimplexError::Unbounded =>
                 "Objective function is unbounded on given domain",
             SimplexError::Loop => "Iteration limit reached",
+            SimplexError::Unfeasible => "Feasible region is empty",
             SimplexError::Whatever => "Unknown error",
         }
     }
@@ -87,6 +90,7 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     //println!("y = {}", y.transpose());
     let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
+    // TODO: may be possible to merge both loops
     if u.iter().all(|x| *x >= 0f64) {
         Ok(None)
     } else {
@@ -129,7 +133,7 @@ fn feasible_basic_vector(a: &mut Matrix,
         //println!("Feasible basic xb = {}", xb.transpose());
         //let v = make_auxiliary_objective(&xb, c.len());
         //if v.iter().all(|x| *x == 0f64) { break; }
-        let k = choose_pivot(a, &v)?.unwrap();
+        let k = choose_pivot(a, &v)?.ok_or(SimplexError::Unfeasible)?;
         //println!("k = {}", k);
         let w = ablu.solve(&a.column(k)).ok_or_else(||
             SimplexError::Unsolvable(ab, a.column(k).clone_owned())
