@@ -90,7 +90,6 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     let y = abt.clone_owned().lu().solve(&cb).ok_or_else(||
         SimplexError::Unsolvable(abt, cb.clone_owned())
     )?;
-    //let y = a.columns(0, m).transpose().lu().solve(&c.rows(0, m)).unwrap();
     //println!("y = {}", y.transpose());
     let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
@@ -132,15 +131,12 @@ fn feasible_basic_vector(a: &mut Matrix,
         )?;
         if xb.iter().all(|x| *x >= 0f64) { break; }
         //println!("Feasible basic xb = {}", xb.transpose());
-        //let v = make_auxiliary_objective(&xb, c.len());
-        //if v.iter().all(|x| *x == 0f64) { break; }
         let k = choose_pivot(a, &v)?.ok_or(SimplexError::Unfeasible)?;
         //println!("k = {}", k);
         let w = ablu.solve(&a.column(k)).ok_or_else(||
             SimplexError::Unsolvable(ab, a.column(k).clone_owned())
         )?;
         //println!("w = {}", w.transpose());
-        //println!("x / w = {}", ratio.transpose());
         if let Some((i, _)) = w.into_iter().zip(xb.iter()).enumerate()
                                .filter(|(_, (_, xi))| **xi < 0f64)
                                .min_by(|(_, (wi, xi)), (_, (wj, xj))|
@@ -202,7 +198,6 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
             SimplexError::Unsolvable(ab, a.column(k).clone_owned())
         )?;
         //println!("w = {}", w.transpose());
-        //assert!(w.iter().any(|e| *e > 0f64), "Objective function is unbounded");
         if w.iter().all(|e| *e <= 0f64) {
             return Err(SimplexError::Unbounded);
         }
