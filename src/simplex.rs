@@ -90,15 +90,11 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     //println!("y = {}", y.transpose());
     let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
-    // TODO: may be possible to merge both loops
-    if u.iter().all(|x| *x >= 0f64) {
-        Ok(None)
-    } else {
-        match u.into_iter().enumerate()
-                           .min_by(|(_, x), (_, y)| x.partial_cmp(y).unwrap()) {
-            Some((k, _)) => Ok(Some(k + m)),
-            None => Err(SimplexError::Filtering),
-        }
+    match u.into_iter().enumerate()
+                       .min_by(|(_, x), (_, y)| x.partial_cmp(y).unwrap())
+    {
+        Some((k, &x)) => Ok(if x >= 0f64 { None } else { Some(k + m) }),
+        None => Err(SimplexError::Filtering),
     }
 }
 

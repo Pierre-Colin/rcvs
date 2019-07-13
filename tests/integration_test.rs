@@ -161,6 +161,7 @@ fn simulate_election() {
     }
 }
 
+// has been observed to fail with minimax and maximin being quite different
 #[test]
 fn condorcet_strategies_optimal() {
     let names: Vec<String> = string_vec!["Alpha", "Bravo", "Charlie",
