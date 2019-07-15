@@ -6,6 +6,8 @@ use std::{
     iter::repeat,
 };
 
+use util::quick_sort;
+
 type Vector = na::DVector<f64>;
 type Matrix = na::DMatrix<f64>;
 
@@ -77,7 +79,13 @@ fn make_indices(m: usize, n: usize) -> Vec<Option<usize>> {
     repeat(None).take(m).chain((0..n).map(|i| Some(i))).collect()
 }
 
-fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
+fn manhattan_norm(x: &Vector) -> f64 {
+    let a: Vec<f64> = x.iter().map(|x| x.abs()).collect();
+    let s = quick_sort(a, |x, y| x.partial_cmp(&y).unwrap());
+    s.into_iter().sum()
+}
+
+fn choose_pivot(a: &Matrix, c: &Vector, norm: f64) -> Result<Option<usize>, SimplexError> {
     // A has shape (m, m + n)
     let (m, mn) = a.shape();
     let n = mn - m;
@@ -94,10 +102,11 @@ fn choose_pivot(a: &Matrix, c: &Vector) -> Result<Option<usize>, SimplexError> {
     let u = c.rows(m, n) - a.columns(m, n).clone().transpose() * y;
     //println!("u = {}", u.transpose());
     if u.iter().any(|x| x.is_nan()) { return Err(SimplexError::NanVector(u)); }
+    // TODO: find a better epsilon if possible
     match u.into_iter().enumerate()
                        .min_by(|(_, x), (_, y)| x.partial_cmp(y).unwrap())
     {
-        Some((k, &x)) => Ok(if x >= 0f64 { None } else { Some(k + m) }),
+        Some((k, &x)) => Ok(if x >= -norm * 1e-10 { None } else { Some(k + m) }),
         None => Err(SimplexError::Filtering),
     }
 }
@@ -131,7 +140,9 @@ fn feasible_basic_vector(a: &mut Matrix,
         )?;
         if xb.iter().all(|x| *x >= 0f64) { break; }
         //println!("Feasible basic xb = {}", xb.transpose());
-        let k = choose_pivot(a, &v)?.ok_or(SimplexError::Unfeasible)?;
+        let k = choose_pivot(a, &v, manhattan_norm(&xb))?.ok_or(
+            SimplexError::Unfeasible
+        )?;
         //println!("k = {}", k);
         let w = ablu.solve(&a.column(k)).ok_or_else(||
             SimplexError::Unsolvable(ab, a.column(k).clone_owned())
@@ -177,15 +188,8 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
         //println!("ind = {:?}", ind);
         // 2. Compute reduced costs for all xk not in basis
         //println!("[[[ Phase 2 ]]]");
-        //println!("u = {}", u.transpose());
         // 3. If all uk >= 0, break; otherwise choose most negative uk
         //println!("[[[ Phase 3 ]]]");
-        let k: usize;
-        match choose_pivot(&a, &c)? {
-            None => break,
-            Some(kk) => k = kk,
-        };
-        //println!("k = {}", k);
         // 4. Minimum ratio test
         //println!("[[[ Phase 4 ]]]");
         let ab = a.columns(0, m).clone_owned();
@@ -194,6 +198,12 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
             SimplexError::Unsolvable(ab.clone(), b.clone())
         )?;
         //println!("New xB value: {}", xb.transpose());
+        let k: usize;
+        match choose_pivot(&a, &c, manhattan_norm(&xb))? {
+            None => break,
+            Some(kk) => k = kk,
+        };
+        //println!("k = {}", k);
         let w = ablu.solve(&a.column(k)).ok_or_else(||
             SimplexError::Unsolvable(ab, a.column(k).clone_owned())
         )?;
@@ -221,8 +231,6 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     xb = ab.clone().lu().solve(b).ok_or_else(||
         SimplexError::Unsolvable(ab, b.clone())
     )?;
-    //println!("Almost finished phase 2 with xb = {}", xb.transpose());
-    //println!("with indices {:?}", ind);
     let x = Vector::from_iterator(
         n,
         (0..n).map(|i|
@@ -234,7 +242,6 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
             }
         )
     );
-    //println!("Finished phase 2 with x = {}", x.transpose());
     Ok(x)
 }
 
@@ -263,27 +270,22 @@ mod tests {
         assert!(f64::abs(x.iter().last().unwrap() - 5f64) < 0.000001f64);
     }
 
-    // https://cbom.atozmath.com/CBOM/Simplex.aspx?q=sm&q1=6%606%60MAX%60Z%60x1%2cx2%2cx3%2cx4%2cx5%2cx6%601%2c1%2c1%2c1%2c1%2c1%602%2c1%2c1%2c1%2c3%2c1%3b3%2c2%2c1%2c3%2c1%2c3%3b3%2c3%2c2%2c1%2c3%2c1%3b3%2c1%2c3%2c2%2c1%2c1%3b1%2c3%2c1%2c3%2c2%2c3%3b3%2c1%2c3%2c3%2c1%2c2%60%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%2c%3c%3d%601%2c1%2c1%2c1%2c1%2c1%60%60A%60false%60true%60false%60true%60false%60false%60true&do=1#PrevPart
+    // https://cbom.atozmath.com/CBOM/Simplex.aspx?q=rsm&q1=6%606%60MAX%60Z%60x1%2Cx2%2Cx3%2Cx4%2Cx5%2Cx6%601%2C1%2C1%2C1%2C1%2C1%602%2C1%2C3%2C1%2C1%2C1%3B3%2C2%2C1%2C2%2C3%2C3%3B1%2C3%2C2%2C2%2C3%2C2%3B3%2C2%2C2%2C2%2C1%2C2%3B3%2C1%2C1%2C3%2C2%2C1%3B3%2C1%2C2%2C2%2C3%2C2%60%3C%3D%2C%3C%3D%2C%3C%3D%2C%3C%3D%2C%3C%3D%2C%3C%3D%601%2C1%2C1%2C1%2C1%2C1%60%60A%60false%60true%60false%60true%60false%60false%60true&do=1#tblSolution
     #[test]
-    fn screw_up() {
+    fn failed_alpha() {
         let m = Matrix::from_iterator(6, 6,
             vec![
-                2f64, 1f64, 1f64, 1f64, 3f64, 1f64,
-                3f64, 2f64, 1f64, 3f64, 1f64, 3f64,
-                3f64, 3f64, 2f64, 1f64, 3f64, 1f64,
-                3f64, 1f64, 3f64, 2f64, 1f64, 1f64,
-                1f64, 3f64, 1f64, 3f64, 2f64, 3f64,
-                3f64, 1f64, 3f64, 3f64, 1f64, 2f64,
+                2f64, 1f64, 3f64, 1f64, 1f64, 1f64,
+                3f64, 2f64, 1f64, 2f64, 3f64, 3f64,
+                1f64, 3f64, 2f64, 2f64, 3f64, 2f64,
+                3f64, 2f64, 2f64, 2f64, 1f64, 2f64,
+                3f64, 1f64, 1f64, 3f64, 2f64, 1f64,
+                3f64, 1f64, 2f64, 2f64, 3f64, 2f64,
             ].into_iter()
         ).transpose();
         let b = Vector::from_element(6, 1f64);
         let c = Vector::from_element(6, -1f64);
         println!("Running simplex with\nM = {}\nb = {}\nc = {}", m, b.transpose(), c.transpose());
-        let x = simplex(&m, &c, &b).unwrap();
-        let sixth = 1f64 / 6f64;
-        assert!(
-            x.iter().zip([0f64, 0f64, sixth, 0f64, sixth, sixth].into_iter()).all(|(x, y)| (x - y).abs() < 1e-6),
-            "x = {}\nexpected (0, 0, 1/6, 0, 1/6, 1/6)", x.transpose()
-        );
+        let _x = simplex(&m, &c, &b).expect("Simplex algorithm failed");
     }
 }

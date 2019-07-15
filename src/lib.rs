@@ -735,7 +735,11 @@ mod tests {
         }
     }
 
-    // FIXME: Fails in rare cases due to unsolvable system
+    /*
+     * NOTE:
+     * Wasn't observed to fail anymore after fixing simplex; keep an eye on it
+     * anyway...
+     */
     #[test]
     fn optimal_strategy() {
         let names = string_vec!["Alpha", "Bravo", "Charlie",
@@ -752,12 +756,14 @@ mod tests {
                     assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
                             "Maximin beats optimal strategy");
                 },
-                (Ok(minimax), Err(_)) => {
+                (Ok(minimax), Err(e)) => {
+                    println!("Maximin failed: {}", e);
                     let opt = g.get_optimal_strategy().unwrap();
                     assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
                             "Minimax beats optimal strategy");
                 },
-                (Err(_), Ok(maximin)) => {
+                (Err(e), Ok(maximin)) => {
+                    println!("Minimax failed: {}", e);
                     let opt = g.get_optimal_strategy().unwrap();
                     assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
                             "Maximin beats optimal strategy");
