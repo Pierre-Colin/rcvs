@@ -21,8 +21,7 @@ pub fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A>
 {
     let mut stack = vec![(0usize, a.len())];
     while !stack.is_empty() {
-        let last = stack.len() - 1;
-        let (b, size) = stack.remove(last);
+        let (b, size) = stack.pop().unwrap();
         if size <= 7 {
             insertion_sort(&mut a, b, b + size, &compare);
         } else {
