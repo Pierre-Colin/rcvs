@@ -5,4 +5,4 @@ authors = ["Pierre Colin"]
 
 [dependencies]
 rand = "0.7"
-nalgebra = "0.16.0"
+nalgebra = "0.18.0"
