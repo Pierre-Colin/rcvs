@@ -26,16 +26,12 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 ## Dependencies
 The root dependencies are:
 * [rand-0.7](https://crates.io/crates/rand)
-* [nalgebra-0.16.0](https://crates.io/crates/nalgebra)
+* [nalgebra-0.18.0](https://crates.io/crates/nalgebra)
 
-Later versions of `nalgebra` did not compile on my (obsolete) version of `rustc`. Nevertheless, I have access to all the features I need right now, so it is not urgent to change this. Note that these dependencies in turn bring other dependencies into the picture.
+Note that these dependencies in turn bring other dependencies into the picture.
 
 ## Building
-As easy as:
-```
-cargo build
-```
-I don't really know what to do with the compiled files though, as I'm only testing with `cargo test`. Like I said, I'm still a beginner in Rust.
+Use `cargo build` to build it and `cargo test` to run unit and integration tests. Otherwise, just specify it in your project's dependencies.
 
 ## Results
-The test `condorcet_strategies_optimal` is the main test of the library. Measured failure rate (how often a randomly-generated strategy beats all Condorcet strategies whose computation succeeded, even by an amount explained away by floating-point approximations) was 0%.
+The test `optimal_strategy` sometimes fail. This is probably due to numerical instability and will be investigated someday. The test `condorcet_strategies_optimal` is the main test of the library. It has (rarely) been observed that the failure rate may surpass a millionth despite the average failure rate being extremely low. The reason is currently unknown.
