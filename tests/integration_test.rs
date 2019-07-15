@@ -4,10 +4,9 @@ extern crate rand;
 
 use std::cmp::Ordering;
 
-use rcvs::{
-    util::shuffle,
-    string_vec,
-};
+use rand::seq::SliceRandom;
+
+use rcvs::string_vec;
 
 fn ovo_ballot(e: &mut rcvs::Election<String>, name: &str, other: &str) {
     let mut b = rcvs::Ballot::<String>::new();
@@ -169,11 +168,16 @@ fn condorcet_strategies_optimal() {
     let num_elections = 200;
     let num_strategies = 500;
     let mut failed = 0u64;
+    let mut rng = rand::thread_rng();
     for _enum in 0..num_elections {
         println!("Election #{}", _enum);
         let mut e = rcvs::Election::<String>::new();
         for _ in 0..500 {
-            let rank: Vec<u64> = shuffle(&(0..(names.len() as u64)).collect());
+            let rank = {
+                let mut x = (0..(names.len() as u64)).collect::<Vec<u64>>();
+                x.shuffle(&mut rng);
+                x
+            };
             let mut b = rcvs::Ballot::<String>::new();
             names.iter().zip(rank.into_iter()).for_each(|(v, r)|
                 assert!(b.insert(v.to_string(), r, r), "Ill-formed ballot")

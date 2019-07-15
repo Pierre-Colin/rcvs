@@ -52,15 +52,6 @@ pub fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A>
     a
 }
 
-pub fn shuffle<V: Clone>(x: &Vec<V>) -> Vec<V> {
-    let mut y = x.to_vec();
-    for i in 1..y.len() {
-        let j = rand::random::<usize>() % (i + 1);
-        y.swap(i, j);
-    }
-    y
-}
-
 /*
  * Credit:
  * https://stackoverflow.com/questions/38183551/concisely-initializing-a-vector-of-strings
