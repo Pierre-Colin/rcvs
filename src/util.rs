@@ -5,6 +5,12 @@
  * guaranteed to be supported in the future. They should only be used inside
  * the crate and in integration tests.
  */
+//! # Utilities
+//!
+//! `rcvs::util` is a module providing a few tools that are useful for both
+//! the crate and integration tests. *It is not intended for external use, and
+//! the elements of this module are not guaranteed to be supported in the
+//! future.*
 use std::cmp::Ordering;
 
 fn insertion_sort<A, F>(a: &mut [A], b: usize, e: usize, compare: &F)
@@ -15,15 +21,23 @@ fn insertion_sort<A, F>(a: &mut [A], b: usize, e: usize, compare: &F)
             if compare(&a[j], &a[j - 1]) != Ordering::Less { break; }
             a.swap(j - 1, j);
         }
-        /*
-        let mut j = i;
-        while j > 0 && compare(&a[j], &a[j - 1]) == Ordering::Less {
-            a.swap(j - 1, j);
-        }
-        */
     }
 }
 
+/// Consumes a vector of items ordered by a comparating function, and returns
+/// a sorted version of it. The argument `rng` is a `rand::Rng` used to
+/// randomize the pivot for optimal average-case time complexity. This
+/// implementation falls back to insertion sort when the size of a slice to
+/// sort drops below 8 elements.
+///
+/// # Example
+///
+/// ```
+/// let a = vec![6, 4, 8, 3];
+/// let s = quick_sort(a, i32::cmp, &mut rand::thread_rng());
+///
+/// assert_eq!(vec![3, 4, 6, 8], s);
+/// ```
 pub fn quick_sort<A, F, R>(mut a: Vec<A>, compare: F, rng: &mut R) -> Vec<A> 
     where F: Fn(&A, &A) -> Ordering,
           R: rand::Rng,
@@ -64,6 +78,14 @@ pub fn quick_sort<A, F, R>(mut a: Vec<A>, compare: F, rng: &mut R) -> Vec<A>
  * Credit:
  * https://stackoverflow.com/questions/38183551/concisely-initializing-a-vector-of-strings
  */
+/// Works like the standard `vec!` macro, but calls `.to_string()` on all the
+/// items. This is used to create `Vec<String>` conveniently.
+///
+/// # Example
+///
+/// ```
+/// let names = string_vec!["Stan", "Kyle", "Eric", "Kenny"];
+/// ```
 #[macro_export]
 macro_rules! string_vec {
     ($($x: expr), *) => (vec![$($x.to_string()), *]);
@@ -104,5 +126,9 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn quickie() {
     }
 }

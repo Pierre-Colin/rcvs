@@ -44,16 +44,22 @@ impl cmp::PartialOrd for Rank {
     }
 }
 
+/// Implements a pre-order ballot to be cast into an election.
 #[derive(Clone)]
 pub struct Ballot<A: Hash> {
     m: HashMap<A, Rank>
 }
 
 impl <A: Hash + Eq> Ballot<A> {
+    /// Creates a new empty ballot.
     pub fn new() -> Ballot<A> {
         Ballot::<A>{ m: HashMap::<A, Rank>::new() }
     }
 
+    /// Attempts to insert rank `(a, b)` into a ballot. Returns `true` if the
+    /// rank is well-formed, and otherwise returns `false` without inserting
+    /// it. This same method can be used to re-rank an alternative that is
+    /// already in the ballot.
     pub fn insert(&mut self, x: A, a: u64, b: u64) -> bool {
         let or = Rank::new(a, b);
         match or {
@@ -62,10 +68,14 @@ impl <A: Hash + Eq> Ballot<A> {
         }
     }
 
+    /// Removes an alternative from a ballot, making it unranked, and returns
+    /// `true` if it was in the ballot and `false` otherwise.
     pub fn remove(&mut self, x: &A) -> bool {
         self.m.remove(x) != None
     }
 
+    /// Returns a non-mutable hash map iterator. The keys are the alternatives,
+    /// and the values are their ranks.
     pub fn iter(&self) -> hash_map::Iter<A, Rank> {
         self.m.iter()
     }

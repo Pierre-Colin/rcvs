@@ -1,3 +1,45 @@
+//! # Randomized Condorcet Voting System
+//!
+//! The crate `rcvs` implements the Randomized Condorcet Voting System, a
+//! strategy-proof voting system using game theory to generalize the original
+//! Condorcet method.
+//!
+//! ## Condorcet method
+//!
+//! The Condorcet method consists of building a directed graph called the _duel
+//! graph_ of the election. Its vertices are the alternatives to vote among,
+//! and an arrow between two alternatives _A_ and _B_ means _A_ is preferred
+//! over _B_ more often than the opposite. The Condorcet criterion states that
+//! if the duel graph has a unique source, then the alternative it corresponds
+//! to never loses in a duel against another alternative and therefore must be
+//! elected.
+//!
+//! ## Randomization
+//!
+//! If no source or several exist, then the Condorcet criterion is not
+//! applicable and something else must be used. As surprising as it seems,
+//! randomly picking the winner usually yields very good properties in voting
+//! systems, but in order to maximize the electors' utility (or rather minimize
+//! the number of electors who end up wishing another alternative won), the
+//! probability distribution used to pick the winner (called strategy) is not
+//! necessarily uniform. Computing the optimal strategy requires some knowledge
+//! of game theory and linear programming, and the resulting voting system has
+//! excellent strategic properties.
+//!
+//! ## Implementation
+//!
+//! This crate provides structures to carry out elections using the Randomized
+//! Condorcet Voting System in Rust. It uses the crate
+//! [nalgebra](https://crates.io/crates/nalgebra) to solve linear programs
+//! and compute the optimal strategy, and [rand](https://crates.io/crates/rand)
+//! to generate pseudo-random numbers which are used both for picking winners
+//! randomly and for more efficient internal numerical algorithms.
+//!
+//! It is never mentioned in this documentation, but whenever a method takes an
+//! argument implementing `rand::Rng`, it means it will make use of
+//! pseudo-random numbers and the programmer will need to provide one,
+//! `rand::thread_rng()` being a quick-and-dirty default which is used in this
+//! crate's unit tests.
 extern crate nalgebra as na;
 extern crate rand;
 
@@ -16,6 +58,7 @@ use std::{
 };
 
 pub use ballot::Ballot;
+pub use simplex::SimplexError;
 pub use strategies::Strategy;
 
 type Adjacency = na::DMatrix<bool>;
@@ -33,16 +76,27 @@ impl <A: Eq> PartialEq for Arrow<A> {
 
 impl <A: Eq> Eq for Arrow<A> {}
 
+/// Implements the duel graph of an election.
 pub struct DuelGraph<A: fmt::Debug> {
     v: Vec<A>,
     a: Adjacency,
 }
 
+/// Implements errors in the election process. Interfaces with simplex errors.
 #[derive(Debug)]
 pub enum ElectionError {
+    /// The simplex algorithm failed to compute both the minimax and maximin
+    /// strategies; the underlying errors are contained in the arguments.
     BothFailed(simplex::SimplexError, simplex::SimplexError),
+
+    /// The simplex algorithm failed to compute the strategy; the underlying
+    /// error is contained in the argument.
     SimplexFailed(simplex::SimplexError),
+
+    /// The operation failed because the election is already closed.
     ElectionClosed,
+
+    /// The operation failed because the election is still open.
     ElectionOpen,
 }
 
@@ -115,10 +169,12 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         n
     }
 
+    /// Returns the source of the graph if it is unique, `None` otherwise.
     pub fn get_source(&self) -> Option<A> {
         self.get_special_node(|i, j| (j, i))
     }
 
+    /// Returns the sink of the graph if it is unique, `None` otherwise.
     pub fn get_sink(&self) -> Option<A> {
         self.get_special_node(|i, j| (i, j))
     }
@@ -156,6 +212,12 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         Ok(Strategy::Mixed(self.v.iter().cloned().zip(p.into_iter()).collect()))
     }
 
+    /// Returns the minimax strategy of the duel graph.
+    ///
+    /// # Errors
+    ///
+    /// If the simplex algorithm fails, returns an error describing the reason
+    /// why.
     pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
@@ -164,6 +226,12 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         self.compute_strategy(&m, 1f64, -1f64, rng)
     }
 
+    /// Returns the maximin strategy of the duel graph.
+    ///
+    /// # Errors
+    ///
+    /// If the simplex algorithm fails, returns an error describing the reason
+    /// why.
     pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
@@ -172,6 +240,18 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         self.compute_strategy(&m, -1f64, 1f64, rng)
     }
 
+    /// Returns an optimal strategy for the duel graph.
+    /// * If the graph has a source, returns a pure strategy electing it.
+    /// * If the simplex algorithm manages to compute both the minimax and
+    /// maximin strategies, floating-point operations might cause one to score
+    /// slightly higher. Returns the higher-scoring one.
+    /// * If the simplex algorithm only manages to compute one of minimax and
+    /// maximin, returns said strategy.
+    ///
+    /// # Errors
+    ///
+    /// If the simplex algorithm fails to compute both strategies, returns an
+    /// error giving both reasons.
     pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, ElectionError>
     {
@@ -213,6 +293,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         }
     }
 
+    /// Returns a comparating number between two strategies `x` and `y`. If
+    /// negative, then `x` performs worse than `y` for the graph `self`. If
+    /// positive, then `x` performs better than `y` for the graph `self`.
     pub fn confront_strategies(&self, x: &Strategy<A>, y: &Strategy<A>) -> f64 {
         let m = Self::adjacency_to_matrix(&self.a);
         let p = self.strategy_vector(x);
@@ -221,6 +304,11 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     }
 
     // NOTE: This is numerically unstable
+    /// Compares two strategies for the given graph to determine which one
+    /// scores the better.
+    ///
+    /// Floating-point operations can make this method unsuitable for some
+    /// uses. Consider using `confront_strategies()` with an epsilon instead.
     pub fn compare_strategies(&self, x: &Strategy<A>, y: &Strategy<A>)
         -> std::cmp::Ordering
     {
@@ -228,6 +316,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     }
 }
 
+/// Implements an election using the Randomized Condorcet Voting System.
 #[derive(Clone)]
 pub struct Election<A: Clone + Eq + Hash> {
     alternatives: HashSet<A>,
@@ -236,6 +325,7 @@ pub struct Election<A: Clone + Eq + Hash> {
 }
 
 impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
+    /// Creates a new empty election.
     pub fn new() -> Election<A> {
         Election::<A> {
             alternatives: HashSet::new(),
@@ -248,10 +338,19 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         self.duels.get(&Arrow::<A>(x.to_owned(), y.to_owned())).cloned()
     }
 
+    /// Closes the election, preventing the casting of ballots.
     pub fn close(&mut self) {
         self.open = false;
     }
 
+    /// Attemps to cast a ballot. Returns `true` if the casting was successful
+    /// and `false` if it was not (which only happens if the election is
+    /// closed).
+    ///
+    /// Casting an alternative that is not in the set of the alternatives of
+    /// the election will add it to the set; if the electors are not supposed
+    /// to be able to add their own alternatives, enforcing this rule is at the
+    /// responsibility of the programmer using the structure.
     pub fn cast(&mut self, ballot: Ballot<A>) -> bool {
         if !self.open { return false; }
         for x in ballot.iter() {
@@ -270,6 +369,12 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         true
     }
 
+    /// Attempts to agregate an election `sub` into the main election `self`,
+    /// merging their lists of alternatives and duels. Returns `true` if the
+    /// merging was possible, or `false` if it failed.
+    ///
+    /// Agregating `sub` into `self` requires `sub` to be closed and `self` to
+    /// be open.
     pub fn agregate(&mut self, sub: Election<A>) -> bool {
         if !self.open || sub.open { return false; }
         for x in sub.alternatives.into_iter() {
@@ -282,6 +387,50 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         true
     }
 
+    /// Attempts to normalize an election. If the election is still open, this
+    /// method does nothing. Normalizing means setting the election's internal
+    /// state so that it reflects what the duel graph would be. In other
+    /// words, if the election counted that `a` electors prefer `A` over `B`
+    /// and `b` electors prefer `B` over `A`, then:
+    /// * if `a > b`, then it will be as if it only counted one elector
+    /// prefering `A` over `B`;
+    /// * if `b > a`, then it will be as if it only counted one elector
+    /// prefering `B` over `A`;
+    /// * if `a == b`, then it will be as if no elector ever compared `A` to
+    /// `B`.
+    ///
+    /// Since this method requires the election to be closed, it cannot be
+    /// used to mess with a direct election. This method is intended to be used
+    /// with `agregate()` to carry out elections working like the American
+    /// Electoral College.
+    ///
+    /// Normalizing an election before computing its duel graph is not
+    /// necessary.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut sub_a = Election::new();
+    /// // carry out election sub_a
+    /// sub_a.close();
+    ///
+    /// let mut sub_b = Election::new();
+    /// // carry out election sub_b
+    /// sub_b.close();
+    ///
+    /// /*
+    ///  * normalize both elections so that the main election treats them
+    ///  * equally
+    ///  */
+    /// sub_a.normalize();
+    /// sub_b.normalize();
+    ///
+    /// // agregate both elections into a main election
+    /// let mut e = Election::new();
+    /// e.agregate(sub_a);
+    /// e.agregate(sub_b);
+    /// e.close();
+    /// ```
     pub fn normalize(&mut self) {
         if self.open { return; }
         for x in self.alternatives.iter() {
@@ -319,11 +468,17 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         }
     }
 
+    /// Adds an alternative to the set of alternatives without casting any
+    /// vote. Returns `true` if the addition was successful, and `false` if the
+    /// election is closed or if the alternative was already present.
     pub fn add_alternative(&mut self, v: &A) -> bool {
         if !self.open { return false; }
         self.alternatives.insert(v.to_owned())
     }
 
+    /// Returns the duel graph of an election. A duel graph may be computed
+    /// before the election is closed, giving information on a partial result
+    /// of the election.
     pub fn get_duel_graph(&self) -> DuelGraph<A> {
         let v: Vec<A> = self.alternatives.iter().cloned().collect();
         let n = v.len();
@@ -340,36 +495,94 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         DuelGraph{ v: v, a: a }
     }
 
+    /// Decides if `x` is already in the set of alternatives known to the
+    /// election. For an alternative to be there, at least one ballot involving
+    /// it must have been cast, or it must have been manually added with the
+    /// method `add_alternative()`.
     pub fn has_alternative(&self, x: &A) -> bool {
         self.alternatives.contains(x)
     }
 
+    /// Returns the Condorcet winner of the election if it exists, `None`
+    /// otherwise.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
     pub fn get_condorcet_winner(&self) -> Option<A> {
         self.get_duel_graph().get_source()
     }
 
+    /// Returns the Condorcet loser of the election if it exists, `None`
+    /// otherwise.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
     pub fn get_condorcet_loser(&self) -> Option<A> {
         self.get_duel_graph().get_sink()
     }
 
+    /// Returns the minimax strategy of the election.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
+    ///
+    /// # Errors
+    ///
+    /// If the simplex algorithm fails to compute the strategy, an error
+    /// describing the reason why is returned.
     pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
         self.get_duel_graph().get_minimax_strategy(rng)
     }
 
+    /// Returns the maximin strategy of the election.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
+    ///
+    /// # Errors
+    ///
+    /// If the simplex algorithm fails to compute the strategy, an error
+    /// describing the reason why is returned.
     pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
         self.get_duel_graph().get_maximin_strategy(rng)
     }
 
+    /// Returns the optimal strategy of the election.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
+    ///
+    /// # Errors
+    ///
+    /// If the election has no Condorcet winner and the simplex algorithm fails
+    /// to compute both the minimax and maximin strategies, an error describing
+    /// both failures is returned.
     pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, ElectionError>
     {
         self.get_duel_graph().get_optimal_strategy(rng)
     }
 
+    /// Elects the winner of the election using the optimal strategy.
+    ///
+    /// Internally, this method computes the duel graph of the election.
+    /// Instead of calling several methods that do it in the same scope,
+    /// consider computing the duel graph separately and operating on it.
+    ///
+    /// # Errors
+    ///
+    /// If the election has no Condorcet winner and the simplex algorithm fails
+    /// to compute both the minimax and maximin strategies, an error describing
+    /// both failures is returned.
     pub fn get_randomized_winner(&self, rng: &mut impl rand::Rng)
         -> Result<Option<A>, ElectionError>
     {

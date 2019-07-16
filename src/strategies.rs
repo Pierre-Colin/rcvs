@@ -1,3 +1,20 @@
+//! # Strategies
+//!
+//! A strategy is a rule on how to pick the winner of an election. It can be
+//! either _pure_ or _mixed_.
+//!
+//! ## Pure strategies
+//!
+//! A pure strategy deterministically always elect the same alternative. It is
+//! intended to be used in the case where a Condorcet winner exists in the
+//! election.
+//!
+//! ## Mixed strategies
+//!
+//! A mixed strategy randomly elects an alternative according to a probability
+//! distribution that is not necessarily uniform and is intended to be
+//! computed in a way that minimizes the number of electors that end up
+//! wishing another alternative was chosen.
 use std::{
     collections::HashSet,
     fmt,
@@ -6,9 +23,17 @@ use std::{
 
 use util::quick_sort;
 
+/// Implements a strategy that may be either pure or mixed.
 #[derive(Clone, Debug)]
 pub enum Strategy<A: Clone + Eq + Hash> {
+    /// Pure strategy, always picking the same winner.
     Pure(A),
+
+    /// Mixed strategy, picking the winner randomly. The vector it contains
+    /// bears tuples which associate a probability to each alternative.
+    /// `std::collections::HashMap` was not used because some algorithms
+    /// require sorting the vector. In general, no guarantee is made as to how
+    /// the elements of the vector are ordered.
     Mixed(Vec<(A, f64)>),
 }
 
@@ -28,6 +53,9 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
 }
 
 impl <A: Clone + Eq + Hash> Strategy<A> {
+    /// Generates a random mixed strategy over a set of alternatives. This
+    /// function is intended for testing the optimality of the minimax and
+    /// maximin strategies.
     pub fn random_mixed(v: &[A], rng: &mut impl rand::Rng) -> Self {
         let mut u: Vec<(A, f64)> =
             v.iter().map(|x| (x.to_owned(), rng.gen::<f64>())).collect();
@@ -40,6 +68,10 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         Strategy::Mixed(u)
     }
 
+    /// Plays a strategy to elect the winner. On a pure strategy, will
+    /// deterministically elect the one described. On a mixed strategy, will
+    /// follow the described probability distribution to randomly elect the
+    /// winner. Returns `None` if `self` is an empty mixed strategy.
     pub fn play(&self, rng: &mut impl rand::Rng) -> Option<A> {
         match self {
             Strategy::Pure(x) => Some(x.to_owned()),
@@ -64,14 +96,36 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         }
     }
 
+    /// Returns `true` if `self` is a pure strategy, and `false` if it is
+    /// mixed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut e = Election::new();
+    /// let mut b = Ballot::new();
+    /// b.insert("Rock", 1, 1);
+    /// b.insert("Paper", 0, 0);
+    /// b.insert("Scissors", 0, 0);
+    /// e.cast(b);
+    ///
+    /// assert!(e.get_optimal_strategy(&mut rand::thread_rng()).is_pure());
+    /// ```
     pub fn is_pure(&self) -> bool {
         if let Strategy::Pure(_) = self { true } else { false }
     }
 
+    /// Returns `true` if `self` is a mixed strategy, and `false` if it is
+    /// pure. `p.is_mixed()` is equivalent to `!p.is_pure()`.
     pub fn is_mixed(&self) -> bool {
         !self.is_pure()
     }
 
+    /// Converts a pure strategy into a mixed strategy which always elects the
+    /// candidate described.
+    ///
+    /// Converting a pure strategy to a mixed one will slow down the `play()`
+    /// method.
     pub fn to_mixed(&self) -> Strategy<A> {
         match self {
             Strategy::Pure(x) => Strategy::Mixed(vec![(x.to_owned(), 1f64)]),
@@ -86,6 +140,7 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         }
     }
 
+    /// Returns the Manhattan distance between two strategies.
     pub fn distance(&self, other: &Strategy<A>) -> f64 {
         let sm = self.to_mixed().unwrap_mixed();
         let om = other.to_mixed().unwrap_mixed();
@@ -113,10 +168,20 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         ).into_iter().sum()
     }
 
+    /// Decides if, up to a chosen `epsilon`, a strategy always elects a given
+    /// alternative.
+    ///
+    /// # Panics
+    ///
+    /// This method asserts that `epsilon > 0f64`.
     pub fn almost_chooses(&self, x: &A, epsilon: f64) -> bool {
+        assert!(epsilon > 0f64);
         self.distance(&Strategy::Pure(x.to_owned())) < epsilon
     }
 
+    /// Returns a vector of all the alternatives the strategy contains. For
+    /// mixed strategies, alternatives with probability 0 to be elected will
+    /// still be included.
     pub fn support(&self) -> Vec<A> {
         match self {
             Strategy::Pure(x) => vec![x.to_owned()],
@@ -124,6 +189,8 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         }
     }
 
+    /// Returns the number of alternatives the strategy involves. Always `1`
+    /// for pure strategies.
     pub fn len(&self) -> usize {
         match self {
             Strategy::Pure(_) => 1usize,
@@ -131,7 +198,16 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         }
     }
 
+    /// Decides if, up to a chosen `epsilon`, a strategy is uniform. Returns
+    /// `false` if `v` differs, even merely in order, to the alternatives in
+    /// `self`'s description. For pure strategies, simply checks if `self`
+    /// elects `v`'s first element.
+    ///
+    /// # Panics
+    ///
+    /// This method asserts that `epsilon > 0f64`.
     pub fn is_uniform(&self, v: &[A], epsilon: f64) -> bool {
+        assert!(epsilon > 0f64);
         match self {
             Strategy::Pure(x) => v.get(0) == Some(x),
             Strategy::Mixed(u) => {
@@ -149,3 +225,17 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
     }
 }
 
+#[cfg(tests)]
+mod tests {
+    #[test]
+    fn quickie() {
+        let mut e = Election::new();
+        let mut b = Ballot::new();
+        b.insert("Rock", 2, 2);
+        b.insert("Paper", 1, 1);
+        b.insert("Scissors", 0, 0);
+        e.cast(b);
+        
+        assert!(e.get_optimal_strategy(&mut rand::thread_rng()).is_pure());
+    }
+}

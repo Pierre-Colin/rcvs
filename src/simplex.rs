@@ -11,14 +11,29 @@ use util::quick_sort;
 type Vector = na::DVector<f64>;
 type Matrix = na::DMatrix<f64>;
 
+/// Gives possible reasons why the simplex algorithm failed to solve a linear
+/// program.
 #[derive(Debug)]
 pub enum SimplexError {
+    /// The system described by the arguments is unsolvable.
     Unsolvable(Matrix, Vector),
+    
+    /// A vector was filtered empty while it should not.
     Filtering,
+
+    /// The objective function is unbounded for the given feasible region.
     Unbounded,
+
+    /// The algorithm exceeded the iteration limit.
     Loop,
+
+    /// The linear program is unfeasible.
     Unfeasible,
+
+    /// A vector ended up containing `NaN`.
     NanVector(Vector),
+
+    /// Unknown error.
     Whatever,
 }
 
