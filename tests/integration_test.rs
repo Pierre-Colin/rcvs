@@ -39,8 +39,8 @@ fn one_versus_one() {
             Ordering::Equal => assert_eq!(s, None),
             Ordering::Greater => assert_eq!(s, Some("Alpha".to_string())),
         }
-        let minimax = g.get_minimax_strategy().unwrap();
-        let maximin = g.get_maximin_strategy().unwrap();
+        let minimax = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
+        let maximin = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
         println!("na = {} and nb = {}", na, nb);
         println!("{}", g);
         println!("Source is {:?}", s);
@@ -76,10 +76,10 @@ fn condorcet_paradox() {
     }
     let g = e.get_duel_graph();
     assert_eq!(g.get_source(), None);
-    let p = g.get_minimax_strategy().unwrap();
+    let p = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
     println!("{:?}", p);
     assert!(p.is_uniform(&names, 1e-6));
-    let p = g.get_maximin_strategy().unwrap();
+    let p = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
     println!("{:?}", p);
     assert!(p.is_uniform(&names, 1e-6));
 }
@@ -112,8 +112,12 @@ fn condorcet_winner() {
                 assert!(e.cast(b), "Election was closed");
             }
             assert_eq!(e.get_condorcet_winner(), Some(v[s].clone()));
-            assert!(e.get_minimax_strategy().unwrap().almost_chooses(&v[s], 1e-6));
-            assert!(e.get_maximin_strategy().unwrap().almost_chooses(&v[s], 1e-6));
+            assert!(e.get_minimax_strategy(&mut rand::thread_rng())
+                     .unwrap()
+                     .almost_chooses(&v[s], 1e-6));
+            assert!(e.get_maximin_strategy(&mut rand::thread_rng())
+                     .unwrap()
+                     .almost_chooses(&v[s], 1e-6));
         }
     }
 }
@@ -141,8 +145,8 @@ fn five_non_uniform() {
     single_ballot(&mut e, names[4], names[0]);
     assert_eq!(e.get_condorcet_winner(), None);
     let g = e.get_duel_graph();
-    let minimax = g.get_minimax_strategy().unwrap();
-    let maximin = g.get_maximin_strategy().unwrap();
+    let minimax = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
+    let maximin = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
     println!("{:?}\n{:?}", minimax, maximin);
     let result = rcvs::Strategy::Mixed(vec![
         ("Alpha".to_string(), 1f64 / 3f64),
@@ -165,7 +169,10 @@ fn simulate_election() {
         cp_ballot(&mut e, v);
     }
     for _ in 0..10 {
-        println!("Winner: {}", e.get_randomized_winner().unwrap().unwrap());
+        println!("Winner: {}",
+                 e.get_randomized_winner(&mut rand::thread_rng())
+                  .unwrap()
+                  .unwrap());
     }
 }
 
@@ -200,11 +207,16 @@ fn condorcet_strategies_optimal() {
         let g = e.get_duel_graph();
         if let Some(x) = g.get_source() { println!("Winner: {}", x); }
         if let Some(x) = g.get_sink() { println!("Loser: {}", x); }
-        match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+        match (g.get_minimax_strategy(&mut rand::thread_rng()),
+               g.get_maximin_strategy(&mut rand::thread_rng()))
+        {
             (Ok(minimax), Ok(maximin)) => {
                 println!("Both worked with {}", minimax.distance(&maximin));
                 for _ in 0..num_strategies {
-                    let p = rcvs::Strategy::random_mixed(&names);
+                    let p = rcvs::Strategy::random_mixed(
+                        &names,
+                        &mut rand::thread_rng()
+                    );
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
                         && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
@@ -218,7 +230,10 @@ fn condorcet_strategies_optimal() {
             (Ok(minimax), Err(e)) => {
                 println!("Maximin failed: {}", e);
                 for _ in 0..1000 {
-                    let p = rcvs::Strategy::random_mixed(&names);
+                    let p = rcvs::Strategy::random_mixed(
+                        &names,
+                        &mut rand::thread_rng()
+                    );
                     if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
@@ -230,7 +245,10 @@ fn condorcet_strategies_optimal() {
             (Err(e), Ok(maximin)) => {
                 println!("Minimax failed: {}", e);
                 for _ in 0..1000 {
-                    let p = rcvs::Strategy::random_mixed(&names);
+                    let p = rcvs::Strategy::random_mixed(
+                        &names,
+                        &mut rand::thread_rng()
+                    );
                     if g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);

@@ -24,8 +24,9 @@ fn insertion_sort<A, F>(a: &mut [A], b: usize, e: usize, compare: &F)
     }
 }
 
-pub fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A> 
-    where F: Fn(&A, &A) -> Ordering
+pub fn quick_sort<A, F, R>(mut a: Vec<A>, compare: F, rng: &mut R) -> Vec<A> 
+    where F: Fn(&A, &A) -> Ordering,
+          R: rand::Rng,
 {
     let mut stack = vec![(0usize, a.len())];
     while !stack.is_empty() {
@@ -33,7 +34,7 @@ pub fn quick_sort<A, F>(mut a: Vec<A>, compare: F) -> Vec<A>
         if size <= 7 {
             insertion_sort(&mut a, b, b + size, &compare);
         } else {
-            a.swap(b + rand::random::<usize>() % size, b);
+            a.swap(b + rng.gen::<usize>() % size, b);
             let mut i = b;
             let mut j = i + 1;
             let mut k = b + size - 1;
@@ -93,7 +94,9 @@ mod tests {
                 let a: Vec<f64> = (0..n).map(|_| 
                     rand::random::<f64>() - 0.5f64
                 ).collect();
-                let s = quick_sort(a, |x, y| x.partial_cmp(&y).unwrap());
+                let s = quick_sort(a,
+                                   |x, y| x.partial_cmp(&y).unwrap(),
+                                   &mut rand::thread_rng());
                 assert!(
                     is_nondecreasing(&s, |x, y| x.partial_cmp(&y).unwrap()),
                     "{:?} isn't sorted",

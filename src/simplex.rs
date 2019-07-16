@@ -79,9 +79,9 @@ fn make_indices(m: usize, n: usize) -> Vec<Option<usize>> {
     repeat(None).take(m).chain((0..n).map(|i| Some(i))).collect()
 }
 
-fn manhattan_norm(x: &Vector) -> f64 {
+fn manhattan_norm(x: &Vector, rng: &mut impl rand::Rng) -> f64 {
     let a: Vec<f64> = x.iter().map(|x| x.abs()).collect();
-    let s = quick_sort(a, |x, y| x.partial_cmp(&y).unwrap());
+    let s = quick_sort(a, |x, y| x.partial_cmp(&y).unwrap(), rng);
     s.into_iter().sum()
 }
 
@@ -120,7 +120,8 @@ fn make_auxiliary_objective(xb: &Vector, l: usize) -> Vector {
 fn feasible_basic_vector(a: &mut Matrix,
                          b: &Vector,
                          c: &mut Vector,
-                         ind: &mut [Option<usize>])
+                         ind: &mut [Option<usize>],
+                         rng: &mut impl rand::Rng)
     -> Result<(), SimplexError>
 {
     let (m, mn) = a.shape();
@@ -140,7 +141,7 @@ fn feasible_basic_vector(a: &mut Matrix,
         )?;
         if xb.iter().all(|x| *x >= 0f64) { break; }
         //println!("Feasible basic xb = {}", xb.transpose());
-        let k = choose_pivot(a, &v, manhattan_norm(&xb))?.ok_or(
+        let k = choose_pivot(a, &v, manhattan_norm(&xb, rng))?.ok_or(
             SimplexError::Unfeasible
         )?;
         //println!("k = {}", k);
@@ -168,7 +169,10 @@ fn feasible_basic_vector(a: &mut Matrix,
 }
 
 // NOTE: prints are for debugging purposes and should be removed eventually
-pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
+pub fn simplex(constraints: &Matrix,
+               cost: &Vector,
+               b: &Vector,
+               rng: &mut impl rand::Rng)
     -> Result<Vector, SimplexError>
 {
     let (m, n) = constraints.shape();
@@ -177,7 +181,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
     let mut c = make_c(&cost, m);
     let mut ind = make_indices(m, n);
     let mut xb;
-    feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
+    feasible_basic_vector(&mut a, b, &mut c, &mut ind, rng)?;
     //println!("b = {}", b.transpose());
     for _pass in 1.. {
         if _pass > 10 * (m + n) { return Err(SimplexError::Loop); }
@@ -199,7 +203,7 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector)
         )?;
         //println!("New xB value: {}", xb.transpose());
         let k: usize;
-        match choose_pivot(&a, &c, manhattan_norm(&xb))? {
+        match choose_pivot(&a, &c, manhattan_norm(&xb, rng))? {
             None => break,
             Some(kk) => k = kk,
         };
@@ -265,7 +269,7 @@ mod tests {
         m[(1, 2)] = 3f64;
         let b = Vector::from_iterator(2, vec![10f64, 15f64].into_iter());
         let c = Vector::from_iterator(3, vec![-2f64, -3f64, -4f64].into_iter());
-        let x = simplex(&m, &c, &b).unwrap();
+        let x = simplex(&m, &c, &b, &mut rand::thread_rng()).unwrap();
         assert!(x.iter().take(2).all(|x| *x < 0.000001f64));
         assert!(f64::abs(x.iter().last().unwrap() - 5f64) < 0.000001f64);
     }
@@ -285,7 +289,11 @@ mod tests {
         ).transpose();
         let b = Vector::from_element(6, 1f64);
         let c = Vector::from_element(6, -1f64);
-        println!("Running simplex with\nM = {}\nb = {}\nc = {}", m, b.transpose(), c.transpose());
-        let _x = simplex(&m, &c, &b).expect("Simplex algorithm failed");
+        println!("Running simplex with\nM = {}\nb = {}\nc = {}",
+                 m,
+                 b.transpose(),
+                 c.transpose());
+        let _x = simplex(&m, &c, &b, &mut rand::thread_rng())
+            .expect("Simplex algorithm failed");
     }
 }

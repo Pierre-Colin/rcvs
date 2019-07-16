@@ -28,18 +28,19 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
 }
 
 impl <A: Clone + Eq + Hash> Strategy<A> {
-    pub fn random_mixed(v: &[A]) -> Self {
+    pub fn random_mixed(v: &[A], rng: &mut impl rand::Rng) -> Self {
         let mut u: Vec<(A, f64)> =
-            v.iter().map(|x| (x.to_owned(), rand::random::<f64>())).collect();
+            v.iter().map(|x| (x.to_owned(), rng.gen::<f64>())).collect();
         let sum: f64 = quick_sort(
             u.clone(),
-            |(_, p), (_, q)| p.partial_cmp(&q).unwrap()
+            |(_, p), (_, q)| p.partial_cmp(&q).unwrap(),
+            &mut rand::thread_rng()
         ).into_iter().map(|(_, p)| p).sum();
         u.iter_mut().for_each(|(_, p)| *p /= sum);
         Strategy::Mixed(u)
     }
 
-    pub fn play(&self) -> Option<A> {
+    pub fn play(&self, rng: &mut impl rand::Rng) -> Option<A> {
         match self {
             Strategy::Pure(x) => Some(x.to_owned()),
             Strategy::Mixed(v) => {
@@ -48,9 +49,10 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
                 } else {
                     let sorted = quick_sort(
                         v.to_vec(),
-                        |(_, x), (_, y)| x.partial_cmp(&y).unwrap()
+                        |(_, x), (_, y)| x.partial_cmp(&y).unwrap(),
+                        &mut rand::thread_rng()
                     );
-                    let r = rand::random::<f64>();
+                    let r = rng.gen::<f64>();
                     let mut acc = 0f64;
                     for (x, p) in sorted.iter() {
                         acc += p;
@@ -104,7 +106,11 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
             }
         }
         // Sum in increasing order for better numerical stability
-        quick_sort(diff, |x, y| x.partial_cmp(&y).unwrap()).into_iter().sum()
+        quick_sort(
+            diff,
+            |x, y| x.partial_cmp(&y).unwrap(),
+            &mut rand::thread_rng()
+        ).into_iter().sum()
     }
 
     pub fn almost_chooses(&self, x: &A, epsilon: f64) -> bool {

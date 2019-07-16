@@ -141,38 +141,45 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         m
     }
 
-    fn compute_strategy(&self, m: &Matrix, bval: f64, cval: f64)
+    fn compute_strategy(&self,
+                        m: &Matrix,
+                        bval: f64,
+                        cval: f64,
+                        rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
         let n = self.v.len();
         let b = Vector::from_element(n, bval);
         let c = Vector::from_element(n, cval);
-        let x = simplex::simplex(m, &c, &b)?;
+        let x = simplex::simplex(m, &c, &b, rng)?;
         let p = simplex::vector_to_lottery(x);
         Ok(Strategy::Mixed(self.v.iter().cloned().zip(p.into_iter()).collect()))
     }
 
-    pub fn get_minimax_strategy(&self)
+    pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
-        self.compute_strategy(&m, 1f64, -1f64)
+        self.compute_strategy(&m, 1f64, -1f64, rng)
     }
 
-    pub fn get_maximin_strategy(&self)
+    pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
         let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
-        self.compute_strategy(&m, -1f64, 1f64)
+        self.compute_strategy(&m, -1f64, 1f64, rng)
     }
 
-    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
+    pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
+        -> Result<Strategy<A>, ElectionError>
+    {
         match self.get_source() {
             Some(x) => Ok(Strategy::Pure(x)),
             None => {
-                match (self.get_minimax_strategy(), self.get_maximin_strategy())
+                match (self.get_minimax_strategy(rng),
+                       self.get_maximin_strategy(rng))
                 {
                     (Ok(minimax), Ok(maximin)) => {
                         Ok(match self.compare_strategies(&minimax, &maximin) {
@@ -345,24 +352,28 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
         self.get_duel_graph().get_sink()
     }
 
-    pub fn get_minimax_strategy(&self)
+    pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
-        self.get_duel_graph().get_minimax_strategy()
+        self.get_duel_graph().get_minimax_strategy(rng)
     }
 
-    pub fn get_maximin_strategy(&self)
+    pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
         -> Result<Strategy<A>, simplex::SimplexError>
     {
-        self.get_duel_graph().get_maximin_strategy()
+        self.get_duel_graph().get_maximin_strategy(rng)
     }
 
-    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
-        self.get_duel_graph().get_optimal_strategy()
+    pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
+        -> Result<Strategy<A>, ElectionError>
+    {
+        self.get_duel_graph().get_optimal_strategy(rng)
     }
 
-    pub fn get_randomized_winner(&self) -> Result<Option<A>, ElectionError> {
-        Ok(self.get_optimal_strategy()?.play())
+    pub fn get_randomized_winner(&self, rng: &mut impl rand::Rng)
+        -> Result<Option<A>, ElectionError>
+    {
+        Ok(self.get_optimal_strategy(rng)?.play(rng))
     }
 }
 
@@ -429,17 +440,20 @@ mod tests {
                     None => panic!("No source in graph {}", g),
                 }
                 assert!(
-                    g.get_minimax_strategy().unwrap()
+                    g.get_minimax_strategy(&mut rand::thread_rng()).unwrap()
                      .almost_chooses(&w.to_string(), 1e-6),
                     "Minimax doesn't choose {}", w
                 );
                 assert!(
-                    g.get_maximin_strategy().unwrap()
+                    g.get_maximin_strategy(&mut rand::thread_rng()).unwrap()
                      .almost_chooses(&w.to_string(), 1e-6),
                     "Minimax doesn't choose {}", w
                 );
-                assert!(g.get_optimal_strategy().unwrap().is_pure(),
-                        "Optimal strategy is mixed");
+                assert!(
+                    g.get_optimal_strategy(&mut rand::thread_rng()).unwrap()
+                                                                   .is_pure(),
+                    "Optimal strategy is mixed"
+                );
             }
         }
     }
@@ -464,8 +478,11 @@ mod tests {
         let g = e.get_duel_graph();
         assert_eq!(g.get_source(), None);
         assert_eq!(g.get_sink(), None);
-        assert!(g.get_optimal_strategy().unwrap().is_uniform(&names, 1e-6),
-                "Non uniform strategy for Condorcet paradox");
+        assert!(
+            g.get_optimal_strategy(&mut rand::thread_rng()).unwrap()
+                .is_uniform(&names, 1e-6),
+            "Non uniform strategy for Condorcet paradox"
+        );
     }
 
     // Last name commented out for convenience (doubles testing time)
@@ -484,10 +501,15 @@ mod tests {
                     v: v.clone(),
                     a: a.clone(),
                 };
-                match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+                match (g.get_minimax_strategy(&mut rand::thread_rng()),
+                       g.get_maximin_strategy(&mut rand::thread_rng()))
+                {
                     (Ok(minimax), Ok(maximin)) => {
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(&v);
+                            let p = Strategy::random_mixed(
+                                &v,
+                                &mut rand::thread_rng()
+                            );
                             let vminimax = g.confront_strategies(&minimax, &p);
                             let vmaximin = g.confront_strategies(&maximin, &p);
                             if vminimax < -1e-6 && vmaximin < -1e-6 {
@@ -505,7 +527,10 @@ mod tests {
                     (Err(e), Ok(maximin)) => {
                         println!("{}\nMinimax failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(&v);
+                            let p = Strategy::random_mixed(
+                                &v,
+                                &mut rand::thread_rng()
+                            );
                             let v = g.confront_strategies(&maximin, &p);
                             if v < -1e-6 {
                                 panic!(
@@ -520,7 +545,10 @@ mod tests {
                     (Ok(minimax), Err(e)) => {
                         println!("{}\nMaximin failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(&v);
+                            let p = Strategy::random_mixed(
+                                &v,
+                                &mut rand::thread_rng()
+                            );
                             let v = g.confront_strategies(&minimax, &p);
                             if v < -1e-6 {
                                 panic!(
@@ -574,9 +602,12 @@ mod tests {
             println!("Pass {}", _pass);
             let g = random_graph(&names);
             println!("{}", g);
-            match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
+            match (g.get_minimax_strategy(&mut rand::thread_rng()),
+                   g.get_maximin_strategy(&mut rand::thread_rng()))
+            {
                 (Ok(minimax), Ok(maximin)) => {
-                    let opt = g.get_optimal_strategy().unwrap();
+                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
+                        .unwrap();
                     assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
                             "Minimax beats optimal strategy");
                     assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
@@ -584,13 +615,15 @@ mod tests {
                 },
                 (Ok(minimax), Err(e)) => {
                     println!("Maximin failed: {}", e);
-                    let opt = g.get_optimal_strategy().unwrap();
+                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
+                        .unwrap();
                     assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
                             "Minimax beats optimal strategy");
                 },
                 (Err(e), Ok(maximin)) => {
                     println!("Minimax failed: {}", e);
-                    let opt = g.get_optimal_strategy().unwrap();
+                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
+                        .unwrap();
                     assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
                             "Maximin beats optimal strategy");
                 },
