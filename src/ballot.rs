@@ -1,4 +1,9 @@
-use std::{fmt, cmp};
+use std::{
+    cmp,
+    collections::{hash_map, HashMap},
+    fmt,
+    hash::Hash,
+};
 
 #[derive(Clone, Debug)]
 pub struct Rank(u64, u64);
@@ -36,6 +41,43 @@ impl cmp::PartialOrd for Rank {
                     => Some(cmp::Ordering::Greater),
                 _ => None,
             }
+    }
+}
+
+#[derive(Clone)]
+pub struct Ballot<A: Hash> {
+    m: HashMap<A, Rank>
+}
+
+impl <A: Hash + Eq> Ballot<A> {
+    pub fn new() -> Ballot<A> {
+        Ballot::<A>{ m: HashMap::<A, Rank>::new() }
+    }
+
+    pub fn insert(&mut self, x: A, a: u64, b: u64) -> bool {
+        let or = Rank::new(a, b);
+        match or {
+            Some(r) => { self.m.insert(x, r); true },
+            None => false,
+        }
+    }
+
+    pub fn remove(&mut self, x: &A) -> bool {
+        self.m.remove(x) != None
+    }
+
+    pub fn iter(&self) -> hash_map::Iter<A, Rank> {
+        self.m.iter()
+    }
+}
+
+impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Ballot {{")?;
+        for (a, r) in self.m.iter() {
+            writeln!(f ,"    {} ranks {}", a, r)?;
+        }
+        write!(f, "}}")
     }
 }
 

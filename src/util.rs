@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn quick_sort_test() {
         for n in 0..=20 {
-            let num_tries = if n < 2 { 1 } else { 10000 };
+            let num_tries = if n < 2 { 1 } else { 1000 };
             for _ in 0..num_tries {
                 let a: Vec<f64> = (0..n).map(|_| 
                     rand::random::<f64>() - 0.5f64

@@ -8,54 +8,18 @@ pub mod util;
 use std::{
     clone::Clone,
     cmp::{Eq, Ordering},
-    collections::{HashMap, hash_map, HashSet},
+    collections::{HashMap, HashSet},
     error::Error,
     fmt,
     hash::Hash,
 };
 
+pub use ballot::Ballot;
 use util::quick_sort;
 
 type Adjacency = na::DMatrix<bool>;
 type Matrix = na::DMatrix<f64>;
 type Vector = na::DVector<f64>;
-
-#[derive(Clone)]
-pub struct Ballot<A: Hash> {
-    m: HashMap<A, ballot::Rank>
-}
-
-impl <A: Hash + Eq> Ballot<A> {
-    pub fn new() -> Ballot<A> {
-        Ballot::<A>{ m: HashMap::<A, ballot::Rank>::new() }
-    }
-
-    pub fn insert(&mut self, x: A, a: u64, b: u64) -> bool {
-        let or = ballot::Rank::new(a, b);
-        match or {
-            Some(r) => { self.m.insert(x, r); true },
-            None => false,
-        }
-    }
-
-    pub fn remove(&mut self, x: &A) -> bool {
-        self.m.remove(x) != None
-    }
-
-    pub fn iter(&self) -> hash_map::Iter<A, ballot::Rank> {
-        self.m.iter()
-    }
-}
-
-impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Ballot {{")?;
-        for (a, r) in self.m.iter() {
-            writeln!(f ,"    {} ranks {}", a, r)?;
-        }
-        write!(f, "}}")
-    }
-}
 
 #[derive(Clone, Debug)]
 pub enum Strategy<A: Clone + Eq + Hash> {
