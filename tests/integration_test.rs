@@ -22,6 +22,7 @@ fn ovo_wins(p: rcvs::Strategy<String>, w: Option<String>, names: &[String]) -> b
     }
 }
 
+// FIXME: has rarely been observed to fail
 #[test]
 fn one_versus_one() {
     for _ in 1..=100 {
