@@ -15,32 +15,41 @@ fn ovo_ballot(e: &mut rcvs::Election<String>, name: &str, other: &str) {
     e.cast(b);
 }
 
-fn ovo_wins(p: rcvs::Strategy<String>, w: Option<String>, names: &[String]) -> bool {
-    match w {
-        None => p.is_uniform(&names, 1e-6),
-        Some(x) => p.almost_chooses(&x, 1e-6),
+fn ovo_wins(p: rcvs::Strategy<String>, w: &Option<String>) -> bool {
+    if let Some(x) = w {
+        p.almost_chooses(&x, 1e-8)
+    } else {
+        // If graph is not weakly connected, maximal strategy is not unique
+        true
     }
 }
 
-// FIXME: has rarely been observed to fail
 #[test]
 fn one_versus_one() {
     for _ in 1..=100 {
         let mut e = rcvs::Election::<String>::new();
-        let na = rand::random::<u64>() % 1000;
-        let nb = rand::random::<u64>() % 1000;
+        let na = rand::random::<u64>() % 100;
+        let nb = rand::random::<u64>() % 100;
         for _ in 1..=na { ovo_ballot(&mut e, "Alpha", "Bravo"); }
         for _ in 1..=nb { ovo_ballot(&mut e, "Bravo", "Alpha"); }
         let g = e.get_duel_graph();
         let s = g.get_source();
-        let p = g.get_minimax_strategy().unwrap();
         match na.cmp(&nb) {
             Ordering::Less => assert_eq!(s, Some("Bravo".to_string())),
             Ordering::Equal => assert_eq!(s, None),
             Ordering::Greater => assert_eq!(s, Some("Alpha".to_string())),
         }
-        assert!(ovo_wins(p, s, &string_vec!["Alpha", "Bravo"]),
+        let minimax = g.get_minimax_strategy().unwrap();
+        let maximin = g.get_maximin_strategy().unwrap();
+        println!("na = {} and nb = {}", na, nb);
+        println!("{}", g);
+        println!("Source is {:?}", s);
+        println!("Minimax is {}", minimax);
+        println!("Maximin is {}", maximin);
+        assert!(ovo_wins(minimax, &s),
                 "Minimax strategy doesn't elect winner");
+        assert!(ovo_wins(maximin, &s),
+                "Maximin strategy doesn't elect winner");
     }
 }
 
@@ -135,7 +144,6 @@ fn five_non_uniform() {
     let minimax = g.get_minimax_strategy().unwrap();
     let maximin = g.get_maximin_strategy().unwrap();
     println!("{:?}\n{:?}", minimax, maximin);
-    // Panic to print during tests (dirty but too lazy to do it the right way)
     let result = rcvs::Strategy::Mixed(vec![
         ("Alpha".to_string(), 1f64 / 3f64),
         ("Bravo".to_string(), 1f64 / 9f64),
@@ -164,7 +172,7 @@ fn simulate_election() {
 /*
  * NOTE:
  * Has been observed to fail in extremely rare cases with minimax and maximin
- * strategies being completely different; record if it happens again.
+ * strategies often being completely different; record if it happens again.
  */
 #[test]
 fn condorcet_strategies_optimal() {

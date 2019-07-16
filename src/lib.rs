@@ -363,8 +363,6 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
 
     pub fn get_randomized_winner(&self) -> Result<Option<A>, ElectionError> {
         Ok(self.get_optimal_strategy()?.play())
-        //let p = self.get_duel_graph().get_minimax_strategy()?;
-        //Ok(play_strategy(&p).clone())
     }
 }
 
