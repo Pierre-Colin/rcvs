@@ -31,7 +31,7 @@ The root dependencies are:
 Note that these dependencies in turn bring other dependencies into the picture.
 
 ## Building
-Use `cargo build` to build it and `cargo test` to run unit and integration tests. Otherwise, just specify it in your project's dependencies.
+Use `cargo build` to build it and `cargo test` to run unit and integration tests. Otherwise, just specify it in your project's dependencies. The documentation is built with `cargo doc`.
 
 ## Results
 The test `optimal_strategy` sometimes fail. This is probably due to numerical instability and will be investigated someday. The test `condorcet_strategies_optimal` is the main test of the library. It has (rarely) been observed that the failure rate may surpass a millionth despite the average failure rate being extremely low. The reason is currently unknown.
