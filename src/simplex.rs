@@ -6,7 +6,7 @@ use std::{
     iter::repeat,
 };
 
-use util::quick_sort;
+use crate::util::quick_sort;
 
 type Vector = na::DVector<f64>;
 type Matrix = na::DMatrix<f64>;

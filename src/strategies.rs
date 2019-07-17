@@ -21,7 +21,7 @@ use std::{
     hash::Hash,
 };
 
-use util::quick_sort;
+use crate::util::quick_sort;
 
 /// Implements a strategy that may be either pure or mixed.
 #[derive(Clone, Debug)]

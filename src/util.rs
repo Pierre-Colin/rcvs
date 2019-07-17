@@ -127,8 +127,4 @@ mod tests {
             }
         }
     }
-
-    #[test]
-    fn quickie() {
-    }
 }

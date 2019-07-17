@@ -223,6 +223,7 @@ fn condorcet_strategies_optimal() {
                         println!("Minimax: {:?}", minimax);
                         println!("Maximin: {:?}", maximin);
                         println!("{:?} beats both minimax and maximin", p);
+                        panic!("NNNNNNNNNNNNNNOPE!!!");
                         failed += 1;
                     }
                 }
@@ -238,6 +239,7 @@ fn condorcet_strategies_optimal() {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("{:?} beats minimax", p);
+                        panic!("NNNNNNNNNNNNNNOPE!!!");
                         failed += 1;
                     }
                 }
@@ -253,6 +255,7 @@ fn condorcet_strategies_optimal() {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);
                         println!("{:?} beats maximin", p);
+                        panic!("NNNNNNNNNNNNNNOPE!!!");
                         failed += 1;
                     }
                 }
