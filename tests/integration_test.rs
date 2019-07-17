@@ -217,8 +217,8 @@ fn condorcet_strategies_optimal() {
                         &names,
                         &mut rand::thread_rng()
                     );
-                    if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less
-                        && g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
+                    if g.confront_strategies(&minimax, &p) < -1e-8
+                        && g.confront_strategies(&maximin, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("Maximin: {:?}", maximin);
@@ -235,7 +235,7 @@ fn condorcet_strategies_optimal() {
                         &names,
                         &mut rand::thread_rng()
                     );
-                    if g.compare_strategies(&minimax, &p) == std::cmp::Ordering::Less {
+                    if g.confront_strategies(&minimax, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("{:?} beats minimax", p);
@@ -251,7 +251,7 @@ fn condorcet_strategies_optimal() {
                         &names,
                         &mut rand::thread_rng()
                     );
-                    if g.compare_strategies(&maximin, &p) == std::cmp::Ordering::Less {
+                    if g.confront_strategies(&maximin, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);
                         println!("{:?} beats maximin", p);
