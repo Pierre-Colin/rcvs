@@ -410,12 +410,15 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// # Example
     ///
     /// ```
+    /// # use rcvs::Election;
     /// let mut sub_a = Election::new();
-    /// // carry out election sub_a
+    /// // -- carry out election sub_a --
+    /// # sub_a.add_alternative(&"Alpha");
     /// sub_a.close();
     ///
     /// let mut sub_b = Election::new();
-    /// // carry out election sub_b
+    /// // -- carry out election sub_b --
+    /// # sub_b.add_alternative(&"Alpha");
     /// sub_b.close();
     ///
     /// /*

@@ -102,6 +102,7 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
     /// # Example
     ///
     /// ```
+    /// # use rcvs::{Ballot, Election};
     /// let mut e = Election::new();
     /// let mut b = Ballot::new();
     /// b.insert("Rock", 1, 1);
@@ -109,7 +110,7 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
     /// b.insert("Scissors", 0, 0);
     /// e.cast(b);
     ///
-    /// assert!(e.get_optimal_strategy(&mut rand::thread_rng()).is_pure());
+    /// assert!(e.get_optimal_strategy(&mut rand::thread_rng()).unwrap().is_pure());
     /// ```
     pub fn is_pure(&self) -> bool {
         if let Strategy::Pure(_) = self { true } else { false }

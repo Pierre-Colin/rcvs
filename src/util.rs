@@ -33,6 +33,7 @@ fn insertion_sort<A, F>(a: &mut [A], b: usize, e: usize, compare: &F)
 /// # Example
 ///
 /// ```
+/// # use rcvs::util::quick_sort;
 /// let a = vec![6, 4, 8, 3];
 /// let s = quick_sort(a, i32::cmp, &mut rand::thread_rng());
 ///
@@ -84,6 +85,7 @@ pub fn quick_sort<A, F, R>(mut a: Vec<A>, compare: F, rng: &mut R) -> Vec<A>
 /// # Example
 ///
 /// ```
+/// # use rcvs::string_vec;
 /// let names = string_vec!["Stan", "Kyle", "Eric", "Kenny"];
 /// ```
 #[macro_export]
