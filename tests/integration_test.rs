@@ -187,7 +187,6 @@ fn condorcet_strategies_optimal() {
                                          "Delta", "Echo", "Foxtrot"];
     let num_elections = 200;
     let num_strategies = 500;
-    let mut failed = 0u64;
     let mut rng = rand::thread_rng();
     for _enum in 0..num_elections {
         println!("Election #{}", _enum);
@@ -222,9 +221,7 @@ fn condorcet_strategies_optimal() {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("Maximin: {:?}", maximin);
-                        println!("{:?} beats both minimax and maximin", p);
-                        panic!("NNNNNNNNNNNNNNOPE!!!");
-                        failed += 1;
+                        panic!("{:?} beats both minimax and maximin", p);
                     }
                 }
             },
@@ -238,9 +235,7 @@ fn condorcet_strategies_optimal() {
                     if g.confront_strategies(&minimax, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
-                        println!("{:?} beats minimax", p);
-                        panic!("NNNNNNNNNNNNNNOPE!!!");
-                        failed += 1;
+                        panic!("{:?} beats minimax", p);
                     }
                 }
             },
@@ -254,16 +249,11 @@ fn condorcet_strategies_optimal() {
                     if g.confront_strategies(&maximin, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);
-                        println!("{:?} beats maximin", p);
-                        panic!("NNNNNNNNNNNNNNOPE!!!");
-                        failed += 1;
+                        panic!("{:?} beats maximin", p);
                     }
                 }
             },
             (Err(e), Err(f)) => panic!("Both failed:\n{}\n{}", e, f),
         };
     }
-    let failure_rate = failed as f64 / (num_elections * num_strategies) as f64;
-    println!("Failure rate: {}", failure_rate);
-    assert!(failure_rate < 1e-6, "Failure rate was too big");
 }
