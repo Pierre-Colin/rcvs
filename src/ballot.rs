@@ -81,6 +81,17 @@ impl <A: Hash + Eq> Ballot<A> {
     }
 }
 
+impl<'a, A: 'a + Hash> IntoIterator for Ballot<A> {
+    type Item = (A, Rank);
+    type IntoIter = hash_map::IntoIter<A, Rank>;
+
+    /// Consumes the ballot and returns a non-mutable hash map iterator. The
+    /// keys are the alternatives, and the values are their ranks.
+    fn into_iter(self) -> Self::IntoIter {
+        self.m.into_iter()
+    }
+}
+
 impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Ballot {{")?;
