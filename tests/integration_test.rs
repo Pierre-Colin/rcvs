@@ -24,6 +24,7 @@ fn ovo_wins(p: rcvs::Strategy<String>, w: &Option<String>) -> bool {
     }
 }
 
+// FIXME: may panic with subtraction overflow
 #[test]
 fn one_versus_one() {
     for _ in 1..=100 {

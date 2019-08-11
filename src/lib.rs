@@ -58,6 +58,7 @@ use std::{
 };
 
 pub use ballot::Ballot;
+pub use ballot::Rank;
 pub use simplex::SimplexError;
 pub use strategies::Strategy;
 
