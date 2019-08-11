@@ -8,6 +8,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Rank(u64, u64);
 
+// TODO: document these functions
 impl Rank {
     pub fn new(a: u64, b: u64) -> Option<Rank> {
         if a <= b {
@@ -15,6 +16,14 @@ impl Rank {
         } else {
             None
         }
+    }
+
+    pub fn low(&self) -> u64 {
+        self.0
+    }
+
+    pub fn high(&self) -> u64 {
+        self.1
     }
 }
 
