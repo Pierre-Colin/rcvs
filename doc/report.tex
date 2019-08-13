@@ -918,6 +918,49 @@ vertices of the convex polytope, and at each iteration, it will follow an edge
 to the neighboring vertex which best reduces the objective function until no
 neighboring vertex is better.
 
+The details of the algorithm are described in \cite{num_rec}, but some
+clarifications need to be made as the authors did not give all the details.
+
+\subsubsection{Auxiliary objective function}
+One question that is not addressed in \cite{num_rec} is what auxiliary
+objective function $\mathbf c$ to choose in case solving
+$A_{\rm B}\,\mathbf x_{\rm B}\;=\;\mathbf b$ did not give a feasible basic
+vector. The solution is to use $\tilde{\mathbf c}$ defined as
+\[
+	\forall i\;\in\;\left\{1,\;\ldots,\;n\right\},\;\tilde{\mathbf c}_n
+		\;=\;\begin{cases}
+			1 & \text{if } x_i\;<\;0 \\
+			0 & \text{otherwise}
+		\end{cases}.
+\]
+This auxiliary objective function needs not be calculated again at each
+iteration.
+
+\subsubsection{Minimum ratio test}
+In \cite{num_rec}, the minimum ratio test is done filtering the $x_i\,/\,w_i$s
+to those with $w_i\;>\;0$, but this is for the main iterative phase. Nothing is
+said for the feasible-basic-vector phase where both $\mathbf x_{\rm B}$ and
+$\mathbf w$ behave very differently. This time, the correct filter is
+$x_i\;<\;0$.
+
+\subsubsection{Computation of the reduced costs}
+The reduced costs are computed in \cite{num_rec} by solving
+${A_{\rm B}}^\top\,\mathbf y\;=\;\mathbf c_{\rm B}$ and, for each
+$k\;\in\;\left\{1,\;\ldots,\;n\right\}$, computing
+$u_k\;=\;c_k\,-\,{\mathbf a_k}^\top\,\mathbf y$. However, it is possible to
+compute all the $u_k$s at the same time in the form of a vector $\mathbf u$.
+This is because $c_k$ are the coordinates of $\mathbf c_{\rm B}$ and
+$\mathbf a_k$ are the columns of $A_{\rm B}$. An interesting observation is
+that the columns of $A_{\rm B}$ are the rows of ${A_{\rm B}}^\top$, leading to
+\[
+	\mathbf u
+		\;=\;\mathbf c_{\rm B}
+			\,-\,\left({A_{\rm B}}^\top\right)^\top\,\mathbf y
+		\;=\;\mathbf c_{\rm B}\,-\,A_{\rm B}\,\mathbf y.
+\]
+This allows to get all the $u_k$s in one formula if a matrix algebra library is
+available.
+
 \begin{thebibliography}{9}
 \bibitem{oscar6echo}
 	oscar6echo,
