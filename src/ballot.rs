@@ -1,3 +1,17 @@
+//! # Ballots
+//!
+//! Theoretically, ballots in the RCVS may be any kind of oriented graph whose
+//! vertices corresponds to alternatives. However, this would leave room for
+//! cyclical preferences which are not desirable as they can be exploited for
+//! easy scams as described in the following code. Instead, the ballot has to
+//! be a _directed acyclic graph_, but this is still a bit too complicated for
+//! practical use.
+//!
+//! The settled-upon ballot model is instead a _pseudo-ranking ballot_ system
+//! where a range of ranks may be attributed to alternatives, and one
+//! alternative is said to be preferred over another if its range is above the
+//! other's with no overlapping. An alternative may have a single range or no
+//! range at all, meaning it is unranked.
 use std::{
     cmp,
     collections::{hash_map, HashMap},
@@ -5,11 +19,16 @@ use std::{
     hash::Hash,
 };
 
+/// Implements a range of ranks
 #[derive(Clone, Debug)]
 pub struct Rank(u64, u64);
 
 // TODO: document these functions
 impl Rank {
+    /// Constructs a range of ranks from two integers and returns it if it is
+    /// valid, `None` otherwise.
+    ///
+    /// A range `[a, b]` is invalid if and only if `b > a`.
     pub fn new(a: u64, b: u64) -> Option<Rank> {
         if a <= b {
             Some(Rank(a, b))
@@ -18,10 +37,12 @@ impl Rank {
         }
     }
 
+    /// Returns the lower bound of the range.
     pub fn low(&self) -> u64 {
         self.0
     }
 
+    /// Returns the upper bound of the range.
     pub fn high(&self) -> u64 {
         self.1
     }
