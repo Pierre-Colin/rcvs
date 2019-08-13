@@ -24,17 +24,25 @@ fn ovo_wins(p: rcvs::Strategy<String>, w: &Option<String>) -> bool {
     }
 }
 
-// FIXME: may panic with subtraction overflow
 #[test]
 fn one_versus_one() {
     for _ in 1..=100 {
         let mut e = rcvs::Election::<String>::new();
+        e.add_alternative(&"Alpha".to_string());
+        e.add_alternative(&"Bravo".to_string());
         let na = rand::random::<u64>() % 100;
         let nb = rand::random::<u64>() % 100;
+        println!("na = {} and nb = {}", na, nb);
+
         for _ in 1..=na { ovo_ballot(&mut e, "Alpha", "Bravo"); }
         for _ in 1..=nb { ovo_ballot(&mut e, "Bravo", "Alpha"); }
+
         let g = e.get_duel_graph();
+        println!("{}", g);
+
         let s = g.get_source();
+        println!("Source is {:?}", s);
+
         match na.cmp(&nb) {
             Ordering::Less => assert_eq!(s, Some("Bravo".to_string())),
             Ordering::Equal => assert_eq!(s, None),
@@ -42,15 +50,16 @@ fn one_versus_one() {
         }
         let minimax = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
         let maximin = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
-        println!("na = {} and nb = {}", na, nb);
-        println!("{}", g);
-        println!("Source is {:?}", s);
         println!("Minimax is {}", minimax);
         println!("Maximin is {}", maximin);
-        assert!(ovo_wins(minimax, &s),
-                "Minimax strategy doesn't elect winner");
-        assert!(ovo_wins(maximin, &s),
-                "Maximin strategy doesn't elect winner");
+        assert!(
+            ovo_wins(minimax, &s),
+            "Minimax strategy doesn't elect winner"
+        );
+        assert!(
+            ovo_wins(maximin, &s),
+            "Maximin strategy doesn't elect winner"
+        );
     }
 }
 
