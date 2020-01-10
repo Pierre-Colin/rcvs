@@ -15,13 +15,7 @@
 //! distribution that is not necessarily uniform and is intended to be
 //! computed in a way that minimizes the number of electors that end up
 //! wishing another alternative was chosen.
-use std::{
-    collections::HashSet,
-    fmt,
-    hash::Hash,
-};
-
-use crate::util::quick_sort;
+use std::{collections::HashSet, fmt, hash::Hash};
 
 /// Implements a strategy that may be either pure or mixed.
 #[derive(Clone, Debug)]
@@ -37,7 +31,7 @@ pub enum Strategy<A: Clone + Eq + Hash> {
     Mixed(Vec<(A, f64)>),
 }
 
-impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
+impl<A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Strategy::Pure(x) => write!(f, "Pure {}", x),
@@ -47,24 +41,22 @@ impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Strategy<A> {
                     writeln!(f, "    {}% {}", 100f64 * p, x)?;
                 }
                 write!(f, "}}")
-            },
+            }
         }
     }
 }
 
-impl <A: Clone + Eq + Hash> Strategy<A> {
+impl<A: Clone + Eq + Hash> Strategy<A> {
     /// Generates a random mixed strategy over a set of alternatives. This
     /// function is intended for testing the optimality of the minimax and
     /// maximin strategies.
     pub fn random_mixed(v: &[A], rng: &mut impl rand::Rng) -> Self {
-        let mut u: Vec<(A, f64)> =
-            v.iter().map(|x| (x.to_owned(), rng.gen::<f64>())).collect();
-        let sum: f64 = quick_sort(
-            u.clone(),
-            |(_, p), (_, q)| p.partial_cmp(&q).unwrap(),
-            &mut rand::thread_rng()
-        ).into_iter().map(|(_, p)| p).sum();
-        u.iter_mut().for_each(|(_, p)| *p /= sum);
+        let mut u: Vec<(A, f64)> = v.iter().map(|x| (x.to_owned(), rng.gen::<f64>())).collect();
+        u.sort_unstable_by(|(_, p), (_, q)| p.partial_cmp(q).unwrap());
+        let sum: f64 = u.iter().map(|(_, p)| p).sum();
+        for (_, p) in u.iter_mut() {
+            *p /= sum;
+        }
         Strategy::Mixed(u)
     }
 
@@ -79,20 +71,20 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
                 if v.is_empty() {
                     None
                 } else {
-                    let sorted = quick_sort(
-                        v.to_vec(),
-                        |(_, x), (_, y)| x.partial_cmp(&y).unwrap(),
-                        &mut rand::thread_rng()
-                    );
+                    // NOTE: `sorted` has to be removed if mixed strategies are sorted
+                    let mut sorted = v.to_vec();
+                    sorted.sort_unstable_by(|(_, p), (_, q)| p.partial_cmp(&q).unwrap());
                     let r = rng.gen::<f64>();
                     let mut acc = 0f64;
                     for (x, p) in sorted.iter() {
                         acc += p;
-                        if acc > r { return Some(x.to_owned()); }
+                        if acc > r {
+                            return Some(x.to_owned());
+                        }
                     }
                     Some(sorted.iter().last().unwrap().0.to_owned())
                 }
-            },
+            }
         }
     }
 
@@ -110,10 +102,14 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
     /// b.insert("Scissors", 0, 0);
     /// e.cast(b);
     ///
-    /// assert!(e.get_optimal_strategy(&mut rand::thread_rng()).unwrap().is_pure());
+    /// assert!(e.get_optimal_strategy().unwrap().is_pure());
     /// ```
     pub fn is_pure(&self) -> bool {
-        if let Strategy::Pure(_) = self { true } else { false }
+        if let Strategy::Pure(_) = self {
+            true
+        } else {
+            false
+        }
     }
 
     /// Returns `true` if `self` is a mixed strategy, and `false` if it is
@@ -152,9 +148,10 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         }
         let mut diff = Vec::new();
         for x in alternatives.into_iter() {
-            match (sm.iter().find(|(y, _)| y == x),
-                   om.iter().find(|(y, _)| y == x))
-            {
+            match (
+                sm.iter().find(|(y, _)| y == x),
+                om.iter().find(|(y, _)| y == x),
+            ) {
                 (Some((_, p)), Some((_, q))) => diff.push((p - q).abs()),
                 (Some((_, p)), None) => diff.push(*p),
                 (None, Some((_, p))) => diff.push(*p),
@@ -162,11 +159,8 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
             }
         }
         // Sum in increasing order for better numerical stability
-        quick_sort(
-            diff,
-            |x, y| x.partial_cmp(&y).unwrap(),
-            &mut rand::thread_rng()
-        ).into_iter().sum()
+        diff.sort_unstable_by(|x, y| x.partial_cmp(&y).unwrap());
+        diff.into_iter().sum()
     }
 
     /// Decides if, up to a chosen `epsilon`, a strategy always elects a given
@@ -212,16 +206,18 @@ impl <A: Clone + Eq + Hash> Strategy<A> {
         match self {
             Strategy::Pure(x) => v.get(0) == Some(x),
             Strategy::Mixed(u) => {
-                if u.len() != v.len() { return false; }
+                if u.len() != v.len() {
+                    return false;
+                }
                 for x in v.iter() {
-                    if u.iter().find(|(y, _)| y == x) == None { return false; }
+                    if u.iter().find(|(y, _)| y == x) == None {
+                        return false;
+                    }
                 }
                 let p = 1f64 / u.len() as f64;
-                let uni = Strategy::Mixed(
-                    v.iter().map(|x| (x.to_owned(), p)).collect()
-                );
+                let uni = Strategy::Mixed(v.iter().map(|x| (x.to_owned(), p)).collect());
                 self.distance(&uni) < epsilon
-            },
+            }
         }
     }
 }
@@ -236,7 +232,7 @@ mod tests {
         b.insert("Paper", 1, 1);
         b.insert("Scissors", 0, 0);
         e.cast(b);
-        
-        assert!(e.get_optimal_strategy(&mut rand::thread_rng()).is_pure());
+
+        assert!(e.get_optimal_strategy().is_pure());
     }
 }

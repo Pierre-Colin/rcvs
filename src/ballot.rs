@@ -51,8 +51,11 @@ impl Rank {
 impl fmt::Display for Rank {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let Rank(a, b) = self;
-        if a == b { write!(f, "{}", a) }
-        else { write!(f, "[{}, {}]", a, b) }
+        if a == b {
+            write!(f, "{}", a)
+        } else {
+            write!(f, "[{}, {}]", a, b)
+        }
     }
 }
 
@@ -64,26 +67,26 @@ impl cmp::PartialEq for Rank {
 
 impl cmp::PartialOrd for Rank {
     fn partial_cmp(&self, other: &Rank) -> Option<cmp::Ordering> {
-            match (self, other) {
-                (&Rank(_, b), &Rank(a, _)) if b < a
-                    => Some(cmp::Ordering::Less),
-                (&Rank(a, _), &Rank(_, b)) if b < a
-                    => Some(cmp::Ordering::Greater),
-                _ => None,
-            }
+        match (self, other) {
+            (&Rank(_, b), &Rank(a, _)) if b < a => Some(cmp::Ordering::Less),
+            (&Rank(a, _), &Rank(_, b)) if b < a => Some(cmp::Ordering::Greater),
+            _ => None,
+        }
     }
 }
 
 /// Implements a pre-order ballot to be cast into an election.
 #[derive(Clone)]
 pub struct Ballot<A: Hash> {
-    m: HashMap<A, Rank>
+    m: HashMap<A, Rank>,
 }
 
-impl <A: Hash + Eq> Ballot<A> {
+impl<A: Hash + Eq> Ballot<A> {
     /// Creates a new empty ballot.
     pub fn new() -> Ballot<A> {
-        Ballot::<A>{ m: HashMap::<A, Rank>::new() }
+        Ballot::<A> {
+            m: HashMap::<A, Rank>::new(),
+        }
     }
 
     /// Attempts to insert rank `(a, b)` into a ballot. Returns `true` if the
@@ -93,7 +96,10 @@ impl <A: Hash + Eq> Ballot<A> {
     pub fn insert(&mut self, x: A, a: u64, b: u64) -> bool {
         let or = Rank::new(a, b);
         match or {
-            Some(r) => { self.m.insert(x, r); true },
+            Some(r) => {
+                self.m.insert(x, r);
+                true
+            }
             None => false,
         }
     }
@@ -122,11 +128,11 @@ impl<'a, A: 'a + Hash> IntoIterator for Ballot<A> {
     }
 }
 
-impl <A: fmt::Display + Hash> fmt::Display for Ballot<A> {
+impl<A: fmt::Display + Hash> fmt::Display for Ballot<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Ballot {{")?;
         for (a, r) in self.m.iter() {
-            writeln!(f ,"    {} ranks {}", a, r)?;
+            writeln!(f, "    {} ranks {}", a, r)?;
         }
         write!(f, "}}")
     }
@@ -197,4 +203,3 @@ mod tests {
         }
     }
 }
-

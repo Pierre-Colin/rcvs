@@ -34,8 +34,12 @@ fn one_versus_one() {
         let nb = rand::random::<u64>() % 100;
         println!("na = {} and nb = {}", na, nb);
 
-        for _ in 1..=na { ovo_ballot(&mut e, "Alpha", "Bravo"); }
-        for _ in 1..=nb { ovo_ballot(&mut e, "Bravo", "Alpha"); }
+        for _ in 1..=na {
+            ovo_ballot(&mut e, "Alpha", "Bravo");
+        }
+        for _ in 1..=nb {
+            ovo_ballot(&mut e, "Bravo", "Alpha");
+        }
 
         let g = e.get_duel_graph();
         println!("{}", g);
@@ -48,8 +52,8 @@ fn one_versus_one() {
             Ordering::Equal => assert_eq!(s, None),
             Ordering::Greater => assert_eq!(s, Some("Alpha".to_string())),
         }
-        let minimax = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
-        let maximin = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
+        let minimax = g.get_minimax_strategy().unwrap();
+        let maximin = g.get_maximin_strategy().unwrap();
         println!("Minimax is {}", minimax);
         println!("Maximin is {}", maximin);
         assert!(
@@ -66,12 +70,10 @@ fn one_versus_one() {
 fn cp_ballot(e: &mut rcvs::Election<String>, names: Vec<String>) {
     let mut b = rcvs::Ballot::<String>::new();
     let l = names.len();
-    names.iter()
-         .enumerate()
-         .for_each(|(i, n)| {
-             let r = (l - i) as u64;
-             assert!(b.insert(n.to_string(), r, r), "Ballot building error");
-         });
+    names.iter().enumerate().for_each(|(i, n)| {
+        let r = (l - i) as u64;
+        assert!(b.insert(n.to_string(), r, r), "Ballot building error");
+    });
     e.cast(b);
 }
 
@@ -80,16 +82,15 @@ fn condorcet_paradox() {
     let names = string_vec!["Alpha", "Bravo", "Charlie"];
     let mut e = rcvs::Election::<String>::new();
     for i in 0..3 {
-        let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string())
-                                   .collect();
+        let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string()).collect();
         cp_ballot(&mut e, v);
     }
     let g = e.get_duel_graph();
     assert_eq!(g.get_source(), None);
-    let p = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
+    let p = g.get_minimax_strategy().unwrap();
     println!("{:?}", p);
     assert!(p.is_uniform(&names, 1e-6));
-    let p = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
+    let p = g.get_maximin_strategy().unwrap();
     println!("{:?}", p);
     assert!(p.is_uniform(&names, 1e-6));
 }
@@ -98,36 +99,33 @@ fn condorcet_paradox() {
 fn condorcet_winner() {
     let names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
     for n in 2..=names.len() {
-        let v: Vec<String> = names.iter()
-                                  .take(n)
-                                  .map(|x| x.to_string())
-                                  .collect();
+        let v: Vec<String> = names.iter().take(n).map(|x| x.to_string()).collect();
         let s = rand::random::<usize>() % n;
         for _ in 0..10 {
             let mut e = rcvs::Election::<String>::new();
             for _ in 0..100 {
                 let mut b = rcvs::Ballot::<String>::new();
-                v.iter().enumerate().for_each(|(i, x)|
+                v.iter().enumerate().for_each(|(i, x)| {
                     if i == s {
                         let r = n as u64;
-                        assert!(b.insert(v[s].clone(), r, r),
-                                "Ballot building error");
+                        assert!(b.insert(v[s].clone(), r, r), "Ballot building error");
                     } else {
                         let rsup = rand::random::<u64>() % (n as u64);
                         let rinf = rand::random::<u64>() % (rsup + 1);
-                        assert!(b.insert(x.to_string(), rinf, rsup),
-                                "Ballot building error");
+                        assert!(b.insert(x.to_string(), rinf, rsup), "Ballot building error");
                     }
-                );
+                });
                 assert!(e.cast(b), "Election was closed");
             }
             assert_eq!(e.get_condorcet_winner(), Some(v[s].clone()));
-            assert!(e.get_minimax_strategy(&mut rand::thread_rng())
-                     .unwrap()
-                     .almost_chooses(&v[s], 1e-6));
-            assert!(e.get_maximin_strategy(&mut rand::thread_rng())
-                     .unwrap()
-                     .almost_chooses(&v[s], 1e-6));
+            assert!(e
+                .get_minimax_strategy()
+                .unwrap()
+                .almost_chooses(&v[s], 1e-6));
+            assert!(e
+                .get_maximin_strategy()
+                .unwrap()
+                .almost_chooses(&v[s], 1e-6));
         }
     }
 }
@@ -155,15 +153,15 @@ fn five_non_uniform() {
     single_ballot(&mut e, names[4], names[0]);
     assert_eq!(e.get_condorcet_winner(), None);
     let g = e.get_duel_graph();
-    let minimax = g.get_minimax_strategy(&mut rand::thread_rng()).unwrap();
-    let maximin = g.get_maximin_strategy(&mut rand::thread_rng()).unwrap();
+    let minimax = g.get_minimax_strategy().unwrap();
+    let maximin = g.get_maximin_strategy().unwrap();
     println!("{:?}\n{:?}", minimax, maximin);
     let result = rcvs::Strategy::Mixed(vec![
         ("Alpha".to_string(), 1f64 / 3f64),
         ("Bravo".to_string(), 1f64 / 9f64),
         ("Charlie".to_string(), 1f64 / 9f64),
         ("Delta".to_string(), 1f64 / 9f64),
-        ("Echo".to_string(), 1f64 / 3f64)
+        ("Echo".to_string(), 1f64 / 3f64),
     ]);
     assert!(minimax.distance(&result) < 1e-6);
     assert!(maximin.distance(&result) < 1e-6);
@@ -174,15 +172,16 @@ fn simulate_election() {
     let names = ["Alpha", "Bravo", "Charlie"];
     let mut e = rcvs::Election::<String>::new();
     for i in 0..3 {
-        let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string())
-                                   .collect();
+        let v: Vec<String> = (0..3).map(|j| names[(i + j) % 3].to_string()).collect();
         cp_ballot(&mut e, v);
     }
     for _ in 0..10 {
-        println!("Winner: {}",
-                 e.get_randomized_winner(&mut rand::thread_rng())
-                  .unwrap()
-                  .unwrap());
+        println!(
+            "Winner: {}",
+            e.get_randomized_winner(&mut rand::thread_rng())
+                .unwrap()
+                .unwrap()
+        );
     }
 }
 
@@ -193,8 +192,7 @@ fn simulate_election() {
  */
 #[test]
 fn condorcet_strategies_optimal() {
-    let names: Vec<String> = string_vec!["Alpha", "Bravo", "Charlie",
-                                         "Delta", "Echo", "Foxtrot"];
+    let names: Vec<String> = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
     let num_elections = 200;
     let num_strategies = 500;
     let mut rng = rand::thread_rng();
@@ -208,61 +206,56 @@ fn condorcet_strategies_optimal() {
                 x
             };
             let mut b = rcvs::Ballot::<String>::new();
-            names.iter().zip(rank.into_iter()).for_each(|(v, r)|
-                assert!(b.insert(v.to_string(), r, r), "Ill-formed ballot")
-            );
+            names
+                .iter()
+                .zip(rank.into_iter())
+                .for_each(|(v, r)| assert!(b.insert(v.to_string(), r, r), "Ill-formed ballot"));
             e.cast(b);
         }
         let g = e.get_duel_graph();
-        if let Some(x) = g.get_source() { println!("Winner: {}", x); }
-        if let Some(x) = g.get_sink() { println!("Loser: {}", x); }
-        match (g.get_minimax_strategy(&mut rand::thread_rng()),
-               g.get_maximin_strategy(&mut rand::thread_rng()))
-        {
+        if let Some(x) = g.get_source() {
+            println!("Winner: {}", x);
+        }
+        if let Some(x) = g.get_sink() {
+            println!("Loser: {}", x);
+        }
+        match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
             (Ok(minimax), Ok(maximin)) => {
                 println!("Both worked with {}", minimax.distance(&maximin));
                 for _ in 0..num_strategies {
-                    let p = rcvs::Strategy::random_mixed(
-                        &names,
-                        &mut rand::thread_rng()
-                    );
+                    let p = rcvs::Strategy::random_mixed(&names, &mut rand::thread_rng());
                     if g.confront_strategies(&minimax, &p) < -1e-8
-                        && g.confront_strategies(&maximin, &p) < -1e-8 {
+                        && g.confront_strategies(&maximin, &p) < -1e-8
+                    {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         println!("Maximin: {:?}", maximin);
                         panic!("{:?} beats both minimax and maximin", p);
                     }
                 }
-            },
+            }
             (Ok(minimax), Err(e)) => {
                 println!("Maximin failed: {}", e);
                 for _ in 0..1000 {
-                    let p = rcvs::Strategy::random_mixed(
-                        &names,
-                        &mut rand::thread_rng()
-                    );
+                    let p = rcvs::Strategy::random_mixed(&names, &mut rand::thread_rng());
                     if g.confront_strategies(&minimax, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Minimax: {:?}", minimax);
                         panic!("{:?} beats minimax", p);
                     }
                 }
-            },
+            }
             (Err(e), Ok(maximin)) => {
                 println!("Minimax failed: {}", e);
                 for _ in 0..1000 {
-                    let p = rcvs::Strategy::random_mixed(
-                        &names,
-                        &mut rand::thread_rng()
-                    );
+                    let p = rcvs::Strategy::random_mixed(&names, &mut rand::thread_rng());
                     if g.confront_strategies(&maximin, &p) < -1e-8 {
                         println!("{}", g);
                         println!("Maximin: {:?}", maximin);
                         panic!("{:?} beats maximin", p);
                     }
                 }
-            },
+            }
             (Err(e), Err(f)) => panic!("Both failed:\n{}\n{}", e, f),
         };
     }

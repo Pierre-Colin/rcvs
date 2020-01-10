@@ -69,13 +69,13 @@ type Vector = na::DVector<f64>;
 #[derive(Clone, Debug, Hash)]
 struct Arrow<A>(A, A);
 
-impl <A: Eq> PartialEq for Arrow<A> {
+impl<A: Eq> PartialEq for Arrow<A> {
     fn eq(&self, other: &Arrow<A>) -> bool {
         self.0 == other.0 && self.1 == other.1
     }
 }
 
-impl <A: Eq> Eq for Arrow<A> {}
+impl<A: Eq> Eq for Arrow<A> {}
 
 /// Implements the duel graph of an election.
 pub struct DuelGraph<A: fmt::Debug> {
@@ -108,9 +108,8 @@ impl fmt::Display for ElectionError {
                 writeln!(f, "Both methods failed:")?;
                 writeln!(f, " * minimax: {}", a)?;
                 writeln!(f, " * maximin: {}", b)
-            },
-            ElectionError::SimplexFailed(e) =>
-                write!(f, "Simplex algorithm failed: {}", e),
+            }
+            ElectionError::SimplexFailed(e) => write!(f, "Simplex algorithm failed: {}", e),
             ElectionError::ElectionClosed => write!(f, "Election is closed"),
             ElectionError::ElectionOpen => write!(f, "Election is open"),
         }
@@ -126,10 +125,12 @@ impl From<simplex::SimplexError> for ElectionError {
 impl Error for ElectionError {
     fn description(&self) -> &str {
         match self {
-            ElectionError::BothFailed(_, _) =>
-                "Both minimax and maximin strategies failed to be solved",
-            ElectionError::SimplexFailed(_) =>
-                "The simplex algorithm failed to compute the strategy",
+            ElectionError::BothFailed(_, _) => {
+                "Both minimax and maximin strategies failed to be solved"
+            }
+            ElectionError::SimplexFailed(_) => {
+                "The simplex algorithm failed to compute the strategy"
+            }
             ElectionError::ElectionClosed => "Election is already closed",
             ElectionError::ElectionOpen => "Election is still open",
         }
@@ -145,7 +146,7 @@ impl Error for ElectionError {
     }
 }
 
-impl <A: fmt::Debug> fmt::Display for DuelGraph<A> {
+impl<A: fmt::Debug> fmt::Display for DuelGraph<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Graph {{")?;
         writeln!(f, "Alternatives: {:?}", self.v)?;
@@ -154,10 +155,8 @@ impl <A: fmt::Debug> fmt::Display for DuelGraph<A> {
     }
 }
 
-impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
-    fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize))
-        -> Option<A>
-    {
+impl<A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
+    fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize)) -> Option<A> {
         let mut n: Option<A> = None;
         for i in 0..self.v.len() {
             if (0..self.v.len()).all(|j| !self.a[f(i, j)]) {
@@ -198,19 +197,20 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         m
     }
 
-    fn compute_strategy(&self,
-                        m: &Matrix,
-                        bval: f64,
-                        cval: f64,
-                        rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, simplex::SimplexError>
-    {
+    fn compute_strategy(
+        &self,
+        m: &Matrix,
+        bval: f64,
+        cval: f64,
+    ) -> Result<Strategy<A>, simplex::SimplexError> {
         let n = self.v.len();
         let b = Vector::from_element(n, bval);
         let c = Vector::from_element(n, cval);
-        let x = simplex::simplex(m, &c, &b, rng)?;
+        let x = simplex::simplex(m, &c, &b)?;
         let p = simplex::vector_to_lottery(x);
-        Ok(Strategy::Mixed(self.v.iter().cloned().zip(p.into_iter()).collect()))
+        Ok(Strategy::Mixed(
+            self.v.iter().cloned().zip(p.into_iter()).collect(),
+        ))
     }
 
     /// Returns the minimax strategy of the duel graph.
@@ -219,12 +219,10 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     ///
     /// If the simplex algorithm fails, returns an error describing the reason
     /// why.
-    pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, simplex::SimplexError>
-    {
+    pub fn get_minimax_strategy(&self) -> Result<Strategy<A>, simplex::SimplexError> {
         let mut m = Self::adjacency_to_matrix(&self.a);
         m.iter_mut().for_each(|e| *e += 2f64);
-        self.compute_strategy(&m, 1f64, -1f64, rng)
+        self.compute_strategy(&m, 1f64, -1f64)
     }
 
     /// Returns the maximin strategy of the duel graph.
@@ -233,12 +231,10 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     ///
     /// If the simplex algorithm fails, returns an error describing the reason
     /// why.
-    pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, simplex::SimplexError>
-    {
+    pub fn get_maximin_strategy(&self) -> Result<Strategy<A>, simplex::SimplexError> {
         let mut m = Self::adjacency_to_matrix(&self.a).transpose();
         m.iter_mut().for_each(|e| *e = -(*e + 2f64));
-        self.compute_strategy(&m, -1f64, 1f64, rng)
+        self.compute_strategy(&m, -1f64, 1f64)
     }
 
     /// Returns an optimal strategy for the duel graph.
@@ -253,25 +249,19 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     ///
     /// If the simplex algorithm fails to compute both strategies, returns an
     /// error giving both reasons.
-    pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, ElectionError>
-    {
+    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
         match self.get_source() {
             Some(x) => Ok(Strategy::Pure(x)),
-            None => {
-                match (self.get_minimax_strategy(rng),
-                       self.get_maximin_strategy(rng))
-                {
-                    (Ok(minimax), Ok(maximin)) => {
-                        Ok(match self.compare_strategies(&minimax, &maximin) {
-                            Ordering::Less => maximin,
-                            _ => minimax,
-                        })
-                    },
-                    (Err(_), Ok(maximin)) => Ok(maximin),
-                    (Ok(minimax), Err(_)) => Ok(minimax),
-                    (Err(e), Err(f)) => Err(ElectionError::BothFailed(e, f)),
+            None => match (self.get_minimax_strategy(), self.get_maximin_strategy()) {
+                (Ok(minimax), Ok(maximin)) => {
+                    Ok(match self.compare_strategies(&minimax, &maximin) {
+                        Ordering::Less => maximin,
+                        _ => minimax,
+                    })
                 }
+                (Err(_), Ok(maximin)) => Ok(maximin),
+                (Ok(minimax), Err(_)) => Ok(minimax),
+                (Err(e), Err(f)) => Err(ElectionError::BothFailed(e, f)),
             },
         }
     }
@@ -280,16 +270,16 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         match p {
             Strategy::Pure(x) => Vector::from_iterator(
                 self.v.len(),
-                self.v.iter().map(|e| if e == x { 1f64 } else { 0f64 })
+                self.v.iter().map(|e| if e == x { 1f64 } else { 0f64 }),
             ),
             Strategy::Mixed(u) => Vector::from_iterator(
                 self.v.len(),
-                self.v.iter().map(|x|
-                    match u.iter().find(|(y, _)| *y == *x) {
+                self.v
+                    .iter()
+                    .map(|x| match u.iter().find(|(y, _)| *y == *x) {
                         None => panic!("Alternative not found"),
                         Some((_, p)) => p.clone(),
-                    }
-                )
+                    }),
             ),
         }
     }
@@ -310,9 +300,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
     ///
     /// Floating-point operations can make this method unsuitable for some
     /// uses. Consider using `confront_strategies()` with an epsilon instead.
-    pub fn compare_strategies(&self, x: &Strategy<A>, y: &Strategy<A>)
-        -> std::cmp::Ordering
-    {
+    pub fn compare_strategies(&self, x: &Strategy<A>, y: &Strategy<A>) -> std::cmp::Ordering {
         self.confront_strategies(x, y).partial_cmp(&0f64).unwrap()
     }
 }
@@ -325,7 +313,7 @@ pub struct Election<A: Clone + Eq + Hash> {
     open: bool,
 }
 
-impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
+impl<A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// Creates a new empty election.
     pub fn new() -> Election<A> {
         Election::<A> {
@@ -336,7 +324,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     }
 
     fn get(&self, x: &A, y: &A) -> Option<u64> {
-        self.duels.get(&Arrow::<A>(x.to_owned(), y.to_owned())).cloned()
+        self.duels
+            .get(&Arrow::<A>(x.to_owned(), y.to_owned()))
+            .cloned()
     }
 
     /// Closes the election, preventing the casting of ballots.
@@ -353,7 +343,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// to be able to add their own alternatives, enforcing this rule is at the
     /// responsibility of the programmer using the structure.
     pub fn cast(&mut self, ballot: Ballot<A>) -> bool {
-        if !self.open { return false; }
+        if !self.open {
+            return false;
+        }
         for x in ballot.iter() {
             let (a, r) = x;
             self.alternatives.insert(a.to_owned());
@@ -362,8 +354,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
                 self.alternatives.insert(b.to_owned());
                 if r > s {
                     let n = self.get(a, b).unwrap_or(0) + 1;
-                    self.duels.insert(Arrow::<A>(a.to_owned(), b.to_owned()),
-                                      n);
+                    self.duels.insert(Arrow::<A>(a.to_owned(), b.to_owned()), n);
                 }
             }
         }
@@ -377,7 +368,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// Agregating `sub` into `self` requires `sub` to be closed and `self` to
     /// be open.
     pub fn agregate(&mut self, sub: Election<A>) -> bool {
-        if !self.open || sub.open { return false; }
+        if !self.open || sub.open {
+            return false;
+        }
         for x in sub.alternatives.into_iter() {
             self.alternatives.insert(x);
         }
@@ -436,7 +429,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// e.close();
     /// ```
     pub fn normalize(&mut self) {
-        if self.open { return; }
+        if self.open {
+            return;
+        }
         for x in self.alternatives.iter() {
             for y in self.alternatives.iter() {
                 let xy = Arrow::<A>(x.clone(), y.clone());
@@ -458,15 +453,15 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
                     Ordering::Less => {
                         self.duels.remove(&xy);
                         self.duels.insert(yx, 1);
-                    },
+                    }
                     Ordering::Equal => {
                         self.duels.remove(&xy);
                         self.duels.remove(&yx);
-                    },
+                    }
                     Ordering::Greater => {
                         self.duels.insert(xy, 1);
                         self.duels.remove(&yx);
-                    },
+                    }
                 }
             }
         }
@@ -476,7 +471,9 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// vote. Returns `true` if the addition was successful, and `false` if the
     /// election is closed or if the alternative was already present.
     pub fn add_alternative(&mut self, v: &A) -> bool {
-        if !self.open { return false; }
+        if !self.open {
+            return false;
+        }
         self.alternatives.insert(v.to_owned())
     }
 
@@ -496,7 +493,7 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
                 }
             }
         }
-        DuelGraph{ v: v, a: a }
+        DuelGraph { v: v, a: a }
     }
 
     /// Decides if `x` is already in the set of alternatives known to the
@@ -537,10 +534,8 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     ///
     /// If the simplex algorithm fails to compute the strategy, an error
     /// describing the reason why is returned.
-    pub fn get_minimax_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, simplex::SimplexError>
-    {
-        self.get_duel_graph().get_minimax_strategy(rng)
+    pub fn get_minimax_strategy(&self) -> Result<Strategy<A>, simplex::SimplexError> {
+        self.get_duel_graph().get_minimax_strategy()
     }
 
     /// Returns the maximin strategy of the election.
@@ -553,10 +548,8 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     ///
     /// If the simplex algorithm fails to compute the strategy, an error
     /// describing the reason why is returned.
-    pub fn get_maximin_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, simplex::SimplexError>
-    {
-        self.get_duel_graph().get_maximin_strategy(rng)
+    pub fn get_maximin_strategy(&self) -> Result<Strategy<A>, simplex::SimplexError> {
+        self.get_duel_graph().get_maximin_strategy()
     }
 
     /// Returns the optimal strategy of the election.
@@ -570,10 +563,8 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// If the election has no Condorcet winner and the simplex algorithm fails
     /// to compute both the minimax and maximin strategies, an error describing
     /// both failures is returned.
-    pub fn get_optimal_strategy(&self, rng: &mut impl rand::Rng)
-        -> Result<Strategy<A>, ElectionError>
-    {
-        self.get_duel_graph().get_optimal_strategy(rng)
+    pub fn get_optimal_strategy(&self) -> Result<Strategy<A>, ElectionError> {
+        self.get_duel_graph().get_optimal_strategy()
     }
 
     /// Elects the winner of the election using the optimal strategy.
@@ -587,14 +578,15 @@ impl <A: Clone + Eq + Hash + fmt::Debug> Election<A> {
     /// If the election has no Condorcet winner and the simplex algorithm fails
     /// to compute both the minimax and maximin strategies, an error describing
     /// both failures is returned.
-    pub fn get_randomized_winner(&self, rng: &mut impl rand::Rng)
-        -> Result<Option<A>, ElectionError>
-    {
-        Ok(self.get_optimal_strategy(rng)?.play(rng))
+    pub fn get_randomized_winner(
+        &self,
+        rng: &mut impl rand::Rng,
+    ) -> Result<Option<A>, ElectionError> {
+        Ok(self.get_optimal_strategy()?.play(rng))
     }
 }
 
-impl <A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
+impl<A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Election {{")?;
         for x in self.duels.iter() {
@@ -622,26 +614,24 @@ mod tests {
                 }
             }
         }
-        DuelGraph {
-            v: v,
-            a: a,
-        }
+        DuelGraph { v: v, a: a }
     }
 
     #[test]
     fn source_strategy() {
-        let names = string_vec!["Alpha", "Bravo", "Charlie",
-                                "Delta", "Echo", "Foxtrot"];
+        let names = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
         for n in 1..=names.len() {
             for _ in 0..100 {
                 let mut m = Adjacency::from_element(n, n, false);
-                (0..n).for_each(|i|
-                    (0..i).for_each(|j| if rand::random::<f64>()< 0.5f64 {
-                        m[(i, j)] = true;
-                    } else {
-                        m[(j, i)] = true;
-                    }
-                ));
+                (0..n).for_each(|i| {
+                    (0..i).for_each(|j| {
+                        if rand::random::<f64>() < 0.5f64 {
+                            m[(i, j)] = true;
+                        } else {
+                            m[(j, i)] = true;
+                        }
+                    })
+                });
                 let s = rand::random::<usize>() % n;
                 (0..n).filter(|i| *i != s).for_each(|i| {
                     m[(s, i)] = true;
@@ -657,18 +647,21 @@ mod tests {
                     None => panic!("No source in graph {}", g),
                 }
                 assert!(
-                    g.get_minimax_strategy(&mut rand::thread_rng()).unwrap()
-                     .almost_chooses(&w.to_string(), 1e-6),
-                    "Minimax doesn't choose {}", w
+                    g.get_minimax_strategy()
+                        .unwrap()
+                        .almost_chooses(&w.to_string(), 1e-6),
+                    "Minimax doesn't choose {}",
+                    w
                 );
                 assert!(
-                    g.get_maximin_strategy(&mut rand::thread_rng()).unwrap()
-                     .almost_chooses(&w.to_string(), 1e-6),
-                    "Minimax doesn't choose {}", w
+                    g.get_maximin_strategy()
+                        .unwrap()
+                        .almost_chooses(&w.to_string(), 1e-6),
+                    "Minimax doesn't choose {}",
+                    w
                 );
                 assert!(
-                    g.get_optimal_strategy(&mut rand::thread_rng()).unwrap()
-                                                                   .is_pure(),
+                    g.get_optimal_strategy().unwrap().is_pure(),
                     "Optimal strategy is mixed"
                 );
             }
@@ -686,18 +679,20 @@ mod tests {
         let names = string_vec!["Alpha", "Bravo", "Charlie"];
         for (i, b) in b.iter_mut().enumerate() {
             for j in 0u64..3u64 {
-                assert!(b.insert(names[(i + (j as usize)) % 3].to_owned(),
-                                 j, j),
-                        "add_entry failed");
+                assert!(
+                    b.insert(names[(i + (j as usize)) % 3].to_owned(), j, j),
+                    "add_entry failed"
+                );
             }
         }
-        for b in b.iter().cloned() { e.cast(b); }
+        for b in b.iter().cloned() {
+            e.cast(b);
+        }
         let g = e.get_duel_graph();
         assert_eq!(g.get_source(), None);
         assert_eq!(g.get_sink(), None);
         assert!(
-            g.get_optimal_strategy(&mut rand::thread_rng()).unwrap()
-                .is_uniform(&names, 1e-6),
+            g.get_optimal_strategy().unwrap().is_uniform(&names, 1e-6),
             "Non uniform strategy for Condorcet paradox"
         );
     }
@@ -705,8 +700,7 @@ mod tests {
     // Last name commented out for convenience (doubles testing time)
     #[test]
     fn tournament() {
-        let names = string_vec!["Alpha", "Bravo", "Charlie",
-                                "Delta", "Echo"/*, "Foxtrot"*/];
+        let names = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo" /*, "Foxtrot"*/];
         for n in 1..=names.len() {
             println!("Size {}", n);
             let v: Vec<String> = names.iter().take(n).cloned().collect();
@@ -718,15 +712,10 @@ mod tests {
                     v: v.clone(),
                     a: a.clone(),
                 };
-                match (g.get_minimax_strategy(&mut rand::thread_rng()),
-                       g.get_maximin_strategy(&mut rand::thread_rng()))
-                {
+                match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
                     (Ok(minimax), Ok(maximin)) => {
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(
-                                &v,
-                                &mut rand::thread_rng()
-                            );
+                            let p = Strategy::random_mixed(&v, &mut rand::thread_rng());
                             let vminimax = g.confront_strategies(&minimax, &p);
                             let vmaximin = g.confront_strategies(&maximin, &p);
                             if vminimax < -1e-6 && vmaximin < -1e-6 {
@@ -740,56 +729,38 @@ mod tests {
                                 );
                             }
                         }
-                    },
+                    }
                     (Err(e), Ok(maximin)) => {
                         println!("{}\nMinimax failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(
-                                &v,
-                                &mut rand::thread_rng()
-                            );
+                            let p = Strategy::random_mixed(&v, &mut rand::thread_rng());
                             let v = g.confront_strategies(&maximin, &p);
                             if v < -1e-6 {
-                                panic!(
-                                    "{:?} beats maximin by {}\n{:?}",
-                                    p,
-                                    v,
-                                    maximin
-                                );
+                                panic!("{:?} beats maximin by {}\n{:?}", p, v, maximin);
                             }
                         }
-                    },
+                    }
                     (Ok(minimax), Err(e)) => {
                         println!("{}\nMaximin failed: {}", g, e);
                         for _ in 0..100 {
-                            let p = Strategy::random_mixed(
-                                &v,
-                                &mut rand::thread_rng()
-                            );
+                            let p = Strategy::random_mixed(&v, &mut rand::thread_rng());
                             let v = g.confront_strategies(&minimax, &p);
                             if v < -1e-6 {
-                                panic!(
-                                    "{:?} beats minimax by {}\n{:?}",
-                                    p,
-                                    v,
-                                    minimax
-                                );
+                                panic!("{:?} beats minimax by {}\n{:?}", p, v, minimax);
                             }
                         }
-                    },
-                    (Err(e), Err(f)) =>
-                        panic!(
-                            "{}\nBoth failed:\n * minimax: {}\n * maximin: {}",
-                            g,
-                            e,
-                            f
-                        ),
+                    }
+                    (Err(e), Err(f)) => {
+                        panic!("{}\nBoth failed:\n * minimax: {}\n * maximin: {}", g, e, f)
+                    }
                 };
                 // Next graph
                 let mut carry = true;
                 for i in 1..n {
                     for j in 0..i {
-                        if !carry { break; }
+                        if !carry {
+                            break;
+                        }
                         if a[(i, j)] {
                             a[(i, j)] = false;
                             a[(j, i)] = true;
@@ -801,7 +772,9 @@ mod tests {
                     }
                 }
                 // Stop test
-                if (1..n).all(|i| (0..i).all(|j| !a[(i, j)])) { break; }
+                if (1..n).all(|i| (0..i).all(|j| !a[(i, j)])) {
+                    break;
+                }
             }
         }
     }
@@ -813,37 +786,39 @@ mod tests {
      */
     #[test]
     fn optimal_strategy() {
-        let names = string_vec!["Alpha", "Bravo", "Charlie",
-                                "Delta", "Echo", "Foxtrot"];
+        let names = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
         for _pass in 0..1000 {
             println!("Pass {}", _pass);
             let g = random_graph(&names);
             println!("{}", g);
-            match (g.get_minimax_strategy(&mut rand::thread_rng()),
-                   g.get_maximin_strategy(&mut rand::thread_rng()))
-            {
+            match (g.get_minimax_strategy(), g.get_maximin_strategy()) {
                 (Ok(minimax), Ok(maximin)) => {
-                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
-                        .unwrap();
-                    assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
-                            "Minimax beats optimal strategy");
-                    assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
-                            "Maximin beats optimal strategy");
-                },
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(
+                        g.confront_strategies(&opt, &minimax) > -1e-6,
+                        "Minimax beats optimal strategy"
+                    );
+                    assert!(
+                        g.confront_strategies(&opt, &maximin) > -1e-6,
+                        "Maximin beats optimal strategy"
+                    );
+                }
                 (Ok(minimax), Err(e)) => {
                     println!("Maximin failed: {}", e);
-                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
-                        .unwrap();
-                    assert!(g.confront_strategies(&opt, &minimax) > -1e-6,
-                            "Minimax beats optimal strategy");
-                },
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(
+                        g.confront_strategies(&opt, &minimax) > -1e-6,
+                        "Minimax beats optimal strategy"
+                    );
+                }
                 (Err(e), Ok(maximin)) => {
                     println!("Minimax failed: {}", e);
-                    let opt = g.get_optimal_strategy(&mut rand::thread_rng())
-                        .unwrap();
-                    assert!(g.confront_strategies(&opt, &maximin) > -1e-6,
-                            "Maximin beats optimal strategy");
-                },
+                    let opt = g.get_optimal_strategy().unwrap();
+                    assert!(
+                        g.confront_strategies(&opt, &maximin) > -1e-6,
+                        "Maximin beats optimal strategy"
+                    );
+                }
                 (Err(e), Err(f)) => panic!("Both failed: {}\n{}", e, f),
             }
         }
@@ -854,16 +829,19 @@ mod tests {
         for x in v.iter() {
             let s = rand::random::<u64>();
             let r = rand::random::<u64>() % (s + 1);
-            assert!(b.insert(x.to_string(), r, s),
-                    "Insert ({}, {}) failed", r, s);
+            assert!(
+                b.insert(x.to_string(), r, s),
+                "Insert ({}, {}) failed",
+                r,
+                s
+            );
         }
         b
     }
 
     #[test]
     fn agregate() {
-        let names = string_vec!["Alpha", "Bravo", "Charlie",
-                                "Delta", "Echo", "Foxtrot"];
+        let names = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
         for _ in 0..50 {
             let mut e = Election::<String>::new();
             let mut sum = Election::<String>::new();
@@ -880,13 +858,10 @@ mod tests {
                 sum.agregate(f);
             }
             // e and sum must be identical
-            assert_eq!(e.alternatives, sum.alternatives,
-                       "Alternative lists differ");
+            assert_eq!(e.alternatives, sum.alternatives, "Alternative lists differ");
             for (a, n) in e.duels.into_iter() {
                 match sum.duels.get(&a) {
-                    Some(m) => assert_eq!(*m, n,
-                                          "{:?} is {} in e but {} in sum",
-                                          a, n, m),
+                    Some(m) => assert_eq!(*m, n, "{:?} is {} in e but {} in sum", a, n, m),
                     None => panic!("{:?} isn't in sum", a),
                 }
             }
@@ -895,28 +870,26 @@ mod tests {
 
     #[test]
     fn normalize() {
-        let names = string_vec!["Alpha", "Bravo", "Charlie",
-                                "Delta", "Echo", "Foxtrot"];
+        let names = string_vec!["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
         for _pass in 0..100 {
             let mut e = Election::<String>::new();
-            for _ in 0..500 { e.cast(random_ballot(&names)); }
+            for _ in 0..500 {
+                e.cast(random_ballot(&names));
+            }
             let mut n = e.clone();
             n.close();
             n.normalize();
             for x in n.alternatives.iter() {
                 let xx = Arrow::<String>(x.to_string(), x.to_string());
-                assert_eq!(n.duels.get(&xx), None,
-                           "{} wins over itself", x);
+                assert_eq!(n.duels.get(&xx), None, "{} wins over itself", x);
                 for y in n.alternatives.iter() {
                     let xy = Arrow::<String>(x.to_string(), y.to_string());
                     let yx = Arrow::<String>(y.to_string(), x.to_string());
                     if let Some(m) = n.duels.get(&xy) {
-                        assert_eq!(n.duels.get(&yx), None,
-                                   "{} and {} loop", x, y);
+                        assert_eq!(n.duels.get(&yx), None, "{} and {} loop", x, y);
                         assert_eq!(*m, 1, "Normalized election has {}", m);
                         if let Some(n) = e.duels.get(&yx) {
-                            assert!(e.duels.get(&xy).unwrap() > n,
-                                    "Backward normalization");
+                            assert!(e.duels.get(&xy).unwrap() > n, "Backward normalization");
                         }
                     }
                 }
