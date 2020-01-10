@@ -71,18 +71,15 @@ impl<A: Clone + Eq + Hash> Strategy<A> {
                 if v.is_empty() {
                     None
                 } else {
-                    // NOTE: `sorted` has to be removed if mixed strategies are sorted
-                    let mut sorted = v.to_vec();
-                    sorted.sort_unstable_by(|(_, p), (_, q)| p.partial_cmp(&q).unwrap());
                     let r = rng.gen::<f64>();
                     let mut acc = 0f64;
-                    for (x, p) in sorted.iter() {
+                    for (x, p) in v.iter() {
                         acc += p;
                         if acc > r {
                             return Some(x.to_owned());
                         }
                     }
-                    Some(sorted.iter().last().unwrap().0.to_owned())
+                    Some(v.last().unwrap().0.to_owned())
                 }
             }
         }

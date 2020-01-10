@@ -207,10 +207,18 @@ impl<A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
         let b = Vector::from_element(n, bval);
         let c = Vector::from_element(n, cval);
         let x = simplex::simplex(m, &c, &b)?;
-        let p = simplex::vector_to_lottery(x);
-        Ok(Strategy::Mixed(
-            self.v.iter().cloned().zip(p.into_iter()).collect(),
-        ))
+        let mut mixed_data: Vec<(A, f64)> = self
+            .v
+            .iter()
+            .cloned()
+            .zip(x.into_iter().map(|&x| x))
+            .collect();
+        mixed_data.sort_unstable_by(|(_, p), (_, q)| p.partial_cmp(&q).unwrap());
+        let sum: f64 = mixed_data.iter().map(|(_, p)| p).sum();
+        for (_, p) in mixed_data.iter_mut() {
+            *p /= sum;
+        }
+        Ok(Strategy::Mixed(mixed_data))
     }
 
     /// Returns the minimax strategy of the duel graph.

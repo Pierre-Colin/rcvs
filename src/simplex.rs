@@ -279,11 +279,6 @@ pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector) -> Result<Vector
     Ok(x)
 }
 
-pub fn vector_to_lottery(x: Vector) -> Vec<f64> {
-    let v: f64 = x.iter().sum();
-    x.into_iter().map(|e| e / v).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
