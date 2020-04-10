@@ -20,13 +20,13 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 
 ### To-dos
 * make the simplex algorithm more numerically stable;
-* make it concurrent, if possible in a more efficient way than just wrapping Election with a mutex;
+* make it concurrent if possible;
 * optimize resource management if possible (ballots having ownership of everything, etc.).
 
 ## Dependencies
 The root dependencies are:
-* [rand-0.7](https://crates.io/crates/rand)
-* [nalgebra-0.18.0](https://crates.io/crates/nalgebra)
+* [rand-0.7.2](https://crates.io/crates/rand)
+* [nalgebra-0.19.0](https://crates.io/crates/nalgebra)
 
 Note that these dependencies in turn bring other dependencies into the picture.
 
