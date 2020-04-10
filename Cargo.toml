@@ -11,5 +11,5 @@ categories = ["science"]
 license = "MIT"
 
 [dependencies]
-rand = "0.7.2"
-nalgebra = "0.19.0"
+rand = "0.7"
+nalgebra = "0.21"

@@ -78,6 +78,7 @@ impl<A: Eq> PartialEq for Arrow<A> {
 impl<A: Eq> Eq for Arrow<A> {}
 
 /// Implements the duel graph of an election.
+#[derive(Clone, Debug)]
 pub struct DuelGraph<A: fmt::Debug> {
     v: Vec<A>,
     a: Adjacency,
