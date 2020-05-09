@@ -157,6 +157,11 @@ impl<A: fmt::Debug> fmt::Display for DuelGraph<A> {
 }
 
 impl<A: Clone + Eq + Hash + fmt::Debug> DuelGraph<A> {
+    /// Returns a slice of the vertice labels
+    pub fn get_vertices(&self) -> &[A] {
+        &self.v
+    }
+
     fn get_special_node(&self, f: impl Fn(usize, usize) -> (usize, usize)) -> Option<A> {
         let mut n: Option<A> = None;
         for i in 0..self.v.len() {
