@@ -55,6 +55,7 @@ use std::{
     error::Error,
     fmt,
     hash::Hash,
+    ops::Index,
 };
 
 pub use ballot::Ballot;
@@ -153,6 +154,15 @@ impl<A: fmt::Debug> fmt::Display for DuelGraph<A> {
         writeln!(f, "Alternatives: {:?}", self.v)?;
         writeln!(f, "{}", self.a)?;
         write!(f, "}}")
+    }
+}
+
+impl<A: fmt::Debug> Index<(usize, usize)> for DuelGraph<A> {
+    type Output = bool;
+
+    /// Decides whether an arrow is in the graph
+    fn index(&self, (from, to): (usize, usize)) -> &Self::Output {
+        &self.a[(from, to)]
     }
 }
 
