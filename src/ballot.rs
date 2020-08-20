@@ -23,7 +23,6 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Rank(u64, u64);
 
-// TODO: document these functions
 impl Rank {
     /// Constructs a range of ranks from two integers and returns it if it is
     /// valid, `None` otherwise.

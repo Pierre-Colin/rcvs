@@ -4,6 +4,7 @@ use std::{error::Error, fmt, iter::repeat};
 
 type Vector = na::DVector<f64>;
 type Matrix = na::DMatrix<f64>;
+type LuDecomp = na::LU<f64, na::Dynamic, na::Dynamic>;
 
 /// Gives possible reasons why the simplex algorithm failed to solve a linear
 /// program.
@@ -140,143 +141,181 @@ fn make_auxiliary_objective(xb: &Vector, l: usize) -> Vector {
     )
 }
 
-fn feasible_basic_vector(
-    a: &mut Matrix,
-    b: &Vector,
-    c: &mut Vector,
-    ind: &mut [Option<usize>],
-) -> Result<(), SimplexError> {
-    let (m, mn) = a.shape();
-    let ab = a.columns(0, m).clone_owned();
-    let mut xb = ab
-        .clone()
-        .lu()
-        .solve(b)
-        .ok_or_else(|| SimplexError::Unsolvable(ab, b.clone()))?;
-    let mut v = make_auxiliary_objective(&xb, c.len());
-    if v.iter().all(|x| *x == 0f64) {
-        return Ok(());
-    }
-    for _pass in 1.. {
-        if _pass > 10 * mn {
-            return Err(SimplexError::Loop);
-        }
-        //println!("Pass {}", _pass);
-        let ab = a.columns(0, m).clone_owned();
-        let ablu = ab.clone().lu();
-        xb = ablu
-            .solve(b)
-            .ok_or_else(|| SimplexError::Unsolvable(ab.clone(), b.clone()))?;
-        if xb.iter().all(|x| *x >= 0f64) {
-            break;
-        }
-        //println!("Feasible basic xb = {}", xb.transpose());
-        let k = choose_pivot(a, &v, manhattan_norm(&xb))?.ok_or(SimplexError::Unfeasible)?;
-        //println!("k = {}", k);
-        let w = ablu
-            .solve(&a.column(k))
-            .ok_or_else(|| SimplexError::Unsolvable(ab, a.column(k).clone_owned()))?;
-        //println!("w = {}", w.transpose());
-        if let Some((i, _)) = w
-            .into_iter()
-            .zip(xb.iter())
-            .enumerate()
-            .filter(|(_, (_, xi))| **xi < 0f64)
-            .min_by(|(_, (wi, xi)), (_, (wj, xj))| (*xi / *wi).partial_cmp(&(*xj / *wj)).unwrap())
-        {
-            // 5. Swap columns i and k
-            //println!("Swapping columns k = {} and i = {}", k, i);
-            a.swap_columns(i, k);
-            c.swap_rows(i, k);
-            v.swap_rows(i, k);
-            ind.swap(i, k);
-        } else {
-            break;
-        }
-    }
-    //println!("Finished phase 1 with xb = {}", xb.transpose());
-    Ok(())
+struct LinearProgram {
+    constraints: Matrix,
+    costs: Vector,
+    limits: Vector,
+    a: Matrix,
+    indices: Vec<Option<usize>>,
+    feasible_basis: Vector,
+    a_basis: Matrix,
+    a_basis_lu: LuDecomp,
 }
 
-// NOTE: prints are for debugging purposes and should be removed eventually
-pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector) -> Result<Vector, SimplexError> {
-    let (m, n) = constraints.shape();
-    let mut a = make_a(constraints);
-    // 1. Find a feasible basis
-    let mut c = make_c(&cost, m);
-    let mut ind = make_indices(m, n);
-    let mut xb;
-    feasible_basic_vector(&mut a, b, &mut c, &mut ind)?;
-    //println!("b = {}", b.transpose());
-    for _pass in 1.. {
-        if _pass > 10 * (m + n) {
-            return Err(SimplexError::Loop);
-        }
-        //println!("========== Pass {} ==========", _pass);
-        //println!("A = {}", a);
-        //println!("c = {}", c.transpose());
-        //println!("xB = {}", xb.transpose());
-        //println!("ind = {:?}", ind);
-        // 2. Compute reduced costs for all xk not in basis
-        //println!("[[[ Phase 2 ]]]");
-        // 3. If all uk >= 0, break; otherwise choose most negative uk
-        //println!("[[[ Phase 3 ]]]");
-        // 4. Minimum ratio test
-        //println!("[[[ Phase 4 ]]]");
-        let ab = a.columns(0, m).clone_owned();
-        let ablu = ab.clone_owned().lu();
-        xb = ablu
-            .solve(b)
-            .ok_or_else(|| SimplexError::Unsolvable(ab.clone(), b.clone()))?;
-        //println!("New xB value: {}", xb.transpose());
-        let k: usize;
-        match choose_pivot(&a, &c, manhattan_norm(&xb))? {
-            None => break,
-            Some(kk) => k = kk,
-        };
-        //println!("k = {}", k);
-        let w = ablu
-            .solve(&a.column(k))
-            .ok_or_else(|| SimplexError::Unsolvable(ab, a.column(k).clone_owned()))?;
-        //println!("w = {}", w.transpose());
-        if w.iter().all(|e| *e <= 0f64) {
-            return Err(SimplexError::Unbounded);
-        }
-        // TODO: change this epsilon to something better
-        if let Some((i, _)) = w
-            .into_iter()
-            .zip(xb.iter())
-            .enumerate()
-            .filter(|(_, (wi, _))| **wi > 1e-6)
-            .min_by(|(_, (wi, xi)), (_, (wj, xj))| (*xi / *wi).partial_cmp(&(*xj / *wj)).unwrap())
-        {
-            // 5. Swap columns i and k
-            //println!("Swapping columns k = {} and i = {}", k, i);
-            a.swap_columns(i, k);
-            c.swap_rows(i, k);
-            ind.swap(i, k);
-        } else {
-            return Err(SimplexError::Whatever);
+impl LinearProgram {
+    pub fn new(constraints: &Matrix, costs: &Vector, limits: &Vector) -> Self {
+        let (m, n) = constraints.shape();
+        let a = make_a(constraints);
+        let a_basis = a.columns(0, a.nrows()).clone_owned();
+        let a_basis_lu = a_basis.clone().lu();
+
+        Self {
+            constraints: constraints.to_owned(),
+            costs: make_c(costs, m),
+            limits: limits.to_owned(),
+            a: a,
+            indices: make_indices(m, n),
+            feasible_basis: unsafe { Vector::new_uninitialized(0) },
+            a_basis: a_basis,
+            a_basis_lu: a_basis_lu,
         }
     }
-    //println!("Almost finished phase 2 with xb = {}", xb.transpose());
-    let ab = a.columns(0, m).clone_owned();
-    xb = ab
-        .clone()
-        .lu()
-        .solve(b)
-        .ok_or_else(|| SimplexError::Unsolvable(ab, b.clone()))?;
-    let x = Vector::from_iterator(
-        n,
-        (0..n).map(|i| {
-            if let Some((e, _)) = xb.into_iter().zip(ind.iter()).find(|(_, n)| **n == Some(i)) {
-                *e
-            } else {
-                0f64
+
+    fn check_pass_too_high(&self, pass: usize) -> Result<(), SimplexError> {
+        if pass <= 10 * self.a.ncols() {
+            Ok(())
+        } else {
+            Err(SimplexError::Loop)
+        }
+    }
+
+    fn extract_a_basis(&self) -> Matrix {
+        self.a.columns(0, self.a.nrows()).clone_owned()
+    }
+
+    fn make_feasible_basic_vector_from_ab(&mut self) -> Result<(), SimplexError> {
+        self.feasible_basis = self
+            .a_basis_lu
+            .solve(&self.limits)
+            .ok_or_else(|| SimplexError::Unsolvable(self.a_basis.clone(), self.limits.clone()))?;
+        Ok(())
+    }
+
+    fn choose_pivot_b(&self, objective: &Vector) -> Result<Option<usize>, SimplexError> {
+        choose_pivot(&self.a, objective, manhattan_norm(&self.feasible_basis))
+    }
+
+    fn make_w(&self, k: usize) -> Result<Vector, SimplexError> {
+        self.a_basis_lu.solve(&self.a.column(k)).ok_or_else(|| {
+            SimplexError::Unsolvable(self.a_basis.clone(), self.a.column(k).clone_owned())
+        })
+    }
+
+    fn get_w_min_by_filter(
+        &self,
+        w: Vector,
+        predicate: impl FnMut(&(usize, (&f64, &f64))) -> bool,
+    ) -> Option<usize> {
+        w.into_iter()
+            .zip(self.feasible_basis.iter())
+            .enumerate()
+            .filter(predicate)
+            .min_by(|(_, (wi, xi)), (_, (wj, xj))| (*xi / *wi).partial_cmp(&(*xj / *wj)).unwrap())
+            .map(|(i, _)| i)
+    }
+
+    fn get_w_min_phase_0(&self, w: Vector) -> Option<usize> {
+        self.get_w_min_by_filter(w, |(_, (_, xi))| **xi < 0f64)
+    }
+
+    fn get_w_min_main_loop(&self, w: Vector) -> Option<usize> {
+        // TODO: find a better epsilon if possible
+        self.get_w_min_by_filter(w, |(_, (wi, _))| **wi > 1e-6)
+    }
+
+    fn swap_columns(&mut self, i: usize, j: usize) {
+        self.a.swap_columns(i, j);
+        self.costs.swap_rows(i, j);
+        self.indices.swap(i, j);
+    }
+
+    fn decompose_a_basis(&mut self) {
+        self.a_basis = self.extract_a_basis();
+        self.a_basis_lu = self.a_basis.clone().lu();
+    }
+
+    fn find_feasible_basic_vector(&mut self) -> Result<(), SimplexError> {
+        self.decompose_a_basis();
+        self.make_feasible_basic_vector_from_ab()?;
+        let mut v = make_auxiliary_objective(&self.feasible_basis, self.costs.len());
+        if v.iter().all(|x| *x == 0f64) {
+            return Ok(());
+        }
+        for pass in 1.. {
+            self.check_pass_too_high(pass)?;
+            self.decompose_a_basis();
+            self.make_feasible_basic_vector_from_ab()?;
+            if self.feasible_basis.iter().all(|x| *x >= 0f64) {
+                break;
             }
-        }),
-    );
-    Ok(x)
+            let pivot = self.choose_pivot_b(&v)?.ok_or(SimplexError::Unfeasible)?;
+            let w = self.make_w(pivot)?;
+            if let Some(i) = self.get_w_min_phase_0(w) {
+                self.swap_columns(i, pivot);
+                v.swap_rows(i, pivot);
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn make_solution_from_basic_vector(&self) -> Vector {
+        let n = self.constraints.ncols();
+        Vector::from_iterator(
+            n,
+            (0..n).map(|i| {
+                self.feasible_basis
+                    .into_iter()
+                    .zip(self.indices.iter())
+                    .find(|(_, n)| **n == Some(i))
+                    .map(|(e, _)| *e)
+                    .unwrap_or(0f64)
+            }),
+        )
+    }
+
+    fn try_swap_main_loop(&mut self, w: Vector, pivot: usize) -> Result<(), SimplexError> {
+        if let Some(i) = self.get_w_min_main_loop(w) {
+            self.swap_columns(i, pivot);
+            Ok(())
+        } else {
+            Err(SimplexError::Whatever)
+        }
+    }
+
+    pub fn solve(mut self) -> Result<Vector, SimplexError> {
+        // 1. Find feasible basis
+        self.find_feasible_basic_vector()?;
+        //println!("b = {}", b.transpose());
+        for pass in 1.. {
+            self.check_pass_too_high(pass)?;
+            // 2. Compute reduced costs for all xk not in basis
+            self.decompose_a_basis();
+            self.make_feasible_basic_vector_from_ab()?;
+            // 3. If all uk >= 0, break; otherwise choose most negative uk
+            let pivot = match self.choose_pivot_b(&self.costs)? {
+                None => break,
+                Some(k) => k,
+            };
+            // 4. Minimum ratio test
+            let w = self.make_w(pivot)?;
+            if w.iter().all(|e| *e <= 0f64) {
+                return Err(SimplexError::Unbounded);
+            }
+            self.try_swap_main_loop(w, pivot)?;
+        }
+        //println!("Almost finished phase 2 with xb = {}", xb.transpose());
+        self.decompose_a_basis();
+        self.make_feasible_basic_vector_from_ab()?;
+        let x = self.make_solution_from_basic_vector();
+        Ok(x)
+    }
+}
+
+pub fn simplex(constraints: &Matrix, cost: &Vector, b: &Vector) -> Result<Vector, SimplexError> {
+    let program = LinearProgram::new(constraints, cost, b);
+    program.solve()
 }
 
 #[cfg(test)]
