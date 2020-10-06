@@ -26,7 +26,7 @@ I welcome all help to improve it, be it with Rust or with the algorithms at hand
 ## Dependencies
 The root dependencies are:
 * [rand-0.7](https://crates.io/crates/rand)
-* [nalgebra-0.21](https://crates.io/crates/nalgebra)
+* [nalgebra-0.22](https://crates.io/crates/nalgebra)
 
 Note that these dependencies in turn bring other dependencies into the picture.
 
