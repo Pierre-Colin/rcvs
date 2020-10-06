@@ -621,6 +621,22 @@ impl<A: Clone + Eq + Hash + fmt::Display> fmt::Display for Election<A> {
     }
 }
 
+pub fn build_graph<A, I, J>(alternatives: I, ballots: J) -> DuelGraph<A>
+where
+    A: Clone + Eq + fmt::Debug + Hash,
+    I: Iterator<Item = A>,
+    J: Iterator<Item = ballot::Ballot<A>>,
+{
+    let mut election = Election::new();
+    for alternative in alternatives {
+        election.add_alternative(&alternative);
+    }
+    for ballot in ballots {
+        election.cast(ballot);
+    }
+    election.get_duel_graph()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -919,5 +935,30 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn iterators() {
+        let mut b = vec![
+            Ballot::<String>::new(),
+            Ballot::<String>::new(),
+            Ballot::<String>::new(),
+        ];
+        let names = string_vec!["Alpha", "Bravo", "Charlie"];
+        for (i, b) in b.iter_mut().enumerate() {
+            for j in 0u64..3u64 {
+                assert!(
+                    b.insert(names[(i + (j as usize)) % 3].to_owned(), j, j),
+                    "add_entry failed"
+                );
+            }
+        }
+        let g = build_graph(names.iter().cloned(), b.into_iter());
+        assert_eq!(g.get_source(), None);
+        assert_eq!(g.get_sink(), None);
+        assert!(
+            g.get_optimal_strategy().unwrap().is_uniform(&names, 1e-6),
+            "Non uniform strategy for Condorcet paradox"
+        );
     }
 }
